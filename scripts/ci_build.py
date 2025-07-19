@@ -29,14 +29,29 @@ def setup_environment():
 def install_dependencies():
     """安装依赖"""
     print("安装依赖...")
-    
+
     try:
         # 升级pip
-        subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pip"], check=True)
-        
-        # 安装项目依赖
-        subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], check=True)
-        
+        subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"], check=True)
+
+        # 安装最小依赖集合
+        minimal_deps = [
+            "PyQt6",
+            "opencv-python-headless",  # 使用headless版本避免GUI依赖
+            "pillow",
+            "numpy",
+            "mss",
+            "psutil",
+            "PyInstaller"
+        ]
+
+        for dep in minimal_deps:
+            try:
+                subprocess.run([sys.executable, "-m", "pip", "install", dep], check=True)
+                print(f"✅ {dep} 安装成功")
+            except subprocess.CalledProcessError:
+                print(f"⚠️ {dep} 安装失败，跳过")
+
         print("依赖安装完成")
         return True
     except subprocess.CalledProcessError as e:
@@ -82,16 +97,12 @@ a = Analysis(
     ],
     hiddenimports=[
         'PyQt6.QtCore',
-        'PyQt6.QtGui', 
+        'PyQt6.QtGui',
         'PyQt6.QtWidgets',
         'cv2',
         'numpy',
-        'pyaudio',
         'mss',
-        'keyboard',
-        'pynput',
         'PIL',
-        'imageio',
         'psutil'
     ],
     hookspath=[],

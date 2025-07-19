@@ -1,0 +1,22 @@
+# CI环境专用依赖 - 最小化依赖集合
+
+# GUI Framework
+PyQt6>=6.6.0
+
+# Video Processing (headless version for CI)
+opencv-python-headless>=4.8.0
+
+# Image Processing
+pillow>=10.0.0
+
+# Numerical Computing
+numpy>=1.24.0
+
+# Screen Capture
+mss>=9.0.0
+
+# System Integration
+psutil>=5.9.0
+
+# Packaging
+PyInstaller>=6.0.0
