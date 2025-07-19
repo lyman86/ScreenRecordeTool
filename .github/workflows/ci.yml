@@ -48,6 +48,10 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       continue-on-error: true
       
+    - name: Create resources directory
+      run: |
+        mkdir -p resources
+
     - name: Test import and basic functionality
       run: |
         python -c "import sys; sys.path.insert(0, 'src'); from config.settings import AppConfig; print('Config loaded successfully')"
