@@ -1,0 +1,18 @@
+# 最小依赖 - 仅包含核心功能所需的包
+
+# GUI Framework
+PyQt6
+
+# Video and Audio Processing
+opencv-python
+pillow
+numpy
+
+# Screen Capture
+mss
+
+# System Integration
+psutil
+
+# Packaging
+PyInstaller

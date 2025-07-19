@@ -73,7 +73,7 @@ def get_venv_python():
 def install_dependencies():
     """安装依赖"""
     print("\n📚 安装项目依赖...")
-    
+
     venv_python = get_venv_python()
     if not venv_python.exists():
         print("   使用系统Python安装依赖...")
@@ -81,22 +81,32 @@ def install_dependencies():
     else:
         print("   使用虚拟环境Python安装依赖...")
         python_cmd = str(venv_python)
-    
+
     try:
         # 升级pip
         print("   升级pip...")
-        subprocess.run([python_cmd, "-m", "pip", "install", "--upgrade", "pip"], 
+        subprocess.run([python_cmd, "-m", "pip", "install", "--upgrade", "pip"],
                       check=True, capture_output=True)
-        
-        # 安装项目依赖
-        print("   安装项目依赖...")
-        subprocess.run([python_cmd, "-m", "pip", "install", "-r", "requirements.txt"], 
+
+        # 首先尝试安装最小依赖
+        print("   尝试安装最小依赖...")
+        try:
+            subprocess.run([python_cmd, "-m", "pip", "install", "-r", "requirements-minimal.txt"],
+                          check=True)
+            print("✅ 最小依赖安装成功")
+            return True
+        except subprocess.CalledProcessError:
+            print("   最小依赖安装失败，尝试完整依赖...")
+
+        # 如果最小依赖失败，尝试完整依赖
+        subprocess.run([python_cmd, "-m", "pip", "install", "-r", "requirements.txt"],
                       check=True)
-        
+
         print("✅ 依赖安装成功")
         return True
     except subprocess.CalledProcessError as e:
         print(f"❌ 依赖安装失败: {e}")
+        print("   建议手动安装依赖: pip install PyQt6 opencv-python pillow numpy mss psutil")
         return False
 
 def run_tests():
