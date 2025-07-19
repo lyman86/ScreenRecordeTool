@@ -1,6 +1,20 @@
 # 现代录屏工具 (Modern Screen Recorder)
 
+[![Build Status](https://github.com/lyman86/ScreenRecordeTool/workflows/Continuous%20Integration/badge.svg)](https://github.com/lyman86/ScreenRecordeTool/actions)
+[![Release](https://github.com/lyman86/ScreenRecordeTool/workflows/Build%20and%20Release/badge.svg)](https://github.com/lyman86/ScreenRecordeTool/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+
 一款功能强大且符合现代UI设计的跨平台录屏软件，支持Windows和macOS。
+
+## 📥 下载
+
+### 预编译版本
+- [Windows版本下载](https://github.com/lyman86/ScreenRecordeTool/releases/latest)
+- [macOS版本下载](https://github.com/lyman86/ScreenRecordeTool/releases/latest)
+
+### 从源码构建
+请参考下面的[快速开始](#快速开始)部分。
 
 ## 功能特性
 
@@ -45,7 +59,7 @@
 ### 方法一：直接运行 (推荐)
 ```bash
 # 1. 克隆项目
-git clone <repository-url>
+git clone https://github.com/lyman86/ScreenRecordeTool.git
 cd ScreenRecordeTool
 
 # 2. 运行安装脚本
@@ -73,6 +87,14 @@ python main.py
 ```bash
 # 自动检测平台并构建
 python build.py
+
+# 或使用平台特定的脚本
+# Windows:
+scripts\build.bat
+
+# macOS/Linux:
+chmod +x scripts/build.sh
+./scripts/build.sh
 ```
 
 ### 手动构建
@@ -92,6 +114,21 @@ python build_scripts/build_macos.py
 
 # 输出文件: dist/ScreenRecorder.app
 ```
+
+### GitHub Actions自动构建
+
+项目配置了GitHub Actions自动构建流程：
+
+- **持续集成**: 每次推送代码时自动运行测试
+- **自动构建**: 创建Release时自动构建Windows和macOS版本
+- **自动发布**: 构建完成后自动上传到GitHub Releases
+
+#### 手动触发构建
+1. 进入项目的GitHub页面
+2. 点击"Actions"标签
+3. 选择"Release Build"工作流
+4. 点击"Run workflow"按钮
+5. 输入版本号（如v1.0.0）并运行
 
 ## 使用说明
 
@@ -278,9 +315,9 @@ pip install -r requirements.txt
 
 ## 联系方式
 
-- 项目主页: [GitHub Repository]
-- 问题反馈: [GitHub Issues]
-- 邮箱: your-email@example.com
+- 项目主页: [GitHub Repository](https://github.com/lyman86/ScreenRecordeTool)
+- 问题反馈: [GitHub Issues](https://github.com/lyman86/ScreenRecordeTool/issues)
+- 邮箱: 1050032593@qq.com
 
 ---
 
