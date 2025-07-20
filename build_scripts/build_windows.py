@@ -125,12 +125,12 @@ VSVersionInfo(
       StringTable(
         u'040904B0',
         [StringStruct(u'CompanyName', u'Your Company'),
-        StringStruct(u'FileDescription', u'现代录屏工具'),
+        StringStruct(u'FileDescription', u'Modern Screen Recorder'),
         StringStruct(u'FileVersion', u'1.0.0.0'),
         StringStruct(u'InternalName', u'ScreenRecorder'),
         StringStruct(u'LegalCopyright', u'Copyright © 2024 Your Company'),
         StringStruct(u'OriginalFilename', u'ScreenRecorder.exe'),
-        StringStruct(u'ProductName', u'现代录屏工具'),
+        StringStruct(u'ProductName', u'Modern Screen Recorder'),
         StringStruct(u'ProductVersion', u'1.0.0.0')])
       ]), 
     VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
@@ -207,13 +207,13 @@ def build_executable():
 
 def create_installer():
     """创建安装程序（使用NSIS）"""
-    print("创建安装程序...")
+    print("Creating installer...")
     
     nsis_script = PROJECT_ROOT / "installer.nsi"
     nsis_content = '''
-; 现代录屏工具安装脚本
+; Modern Screen Recorder Installation Script
 
-!define APP_NAME "现代录屏工具"
+!define APP_NAME "Modern Screen Recorder"
 !define APP_VERSION "1.0.0"
 !define APP_PUBLISHER "Your Company"
 !define APP_EXE "ScreenRecorder.exe"
@@ -228,12 +228,12 @@ InstallDir "$PROGRAMFILES\\${APP_NAME}"
 InstallDirRegKey HKCU "Software\\${APP_NAME}" ""
 RequestExecutionLevel admin
 
-; 界面设置
+; Interface Settings
 !define MUI_ABORTWARNING
 !define MUI_ICON "resources\\icon.ico"
 !define MUI_UNICON "resources\\icon.ico"
 
-; 页面
+; Pages
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_LICENSE "LICENSE.txt"
 !insertmacro MUI_PAGE_DIRECTORY
@@ -245,29 +245,29 @@ RequestExecutionLevel admin
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_UNPAGE_FINISH
 
-; 语言
-!insertmacro MUI_LANGUAGE "SimpChinese"
+; Language
+!insertmacro MUI_LANGUAGE "English"
 
-; 安装部分
-Section "主程序" SecMain
+; Installation Section
+Section "Main Program" SecMain
     SetOutPath "$INSTDIR"
     File /r "dist\\*.*"
     
-    ; 创建快捷方式
+    ; Create shortcuts
     CreateDirectory "$SMPROGRAMS\\${APP_NAME}"
     CreateShortCut "$SMPROGRAMS\\${APP_NAME}\\${APP_NAME}.lnk" "$INSTDIR\\${APP_EXE}"
     CreateShortCut "$DESKTOP\\${APP_NAME}.lnk" "$INSTDIR\\${APP_EXE}"
     
-    ; 写入注册表
+    ; Write registry
     WriteRegStr HKCU "Software\\${APP_NAME}" "" $INSTDIR
     WriteRegStr HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_NAME}" "DisplayName" "${APP_NAME}"
     WriteRegStr HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_NAME}" "UninstallString" "$INSTDIR\\uninstall.exe"
     
-    ; 创建卸载程序
+    ; Create uninstaller
     WriteUninstaller "$INSTDIR\\uninstall.exe"
 SectionEnd
 
-; 卸载部分
+; Uninstall Section
 Section "Uninstall"
     Delete "$INSTDIR\\*.*"
     RMDir /r "$INSTDIR"
@@ -284,13 +284,13 @@ SectionEnd
     with open(nsis_script, 'w', encoding='utf-8') as f:
         f.write(nsis_content)
     
-    print(f"已创建NSIS脚本: {nsis_script}")
-    print("请使用NSIS编译器编译installer.nsi文件来创建安装程序")
+    print(f"NSIS script created: {nsis_script}")
+    print("Please use NSIS compiler to compile installer.nsi file to create installer")
 
 def main():
     """主函数"""
     print("=" * 50)
-    print("Windows打包脚本")
+    print("Windows Build Script")
     print("=" * 50)
     
     try:
