@@ -32,7 +32,10 @@ def create_spec_file(has_icon=False):
     """Create PyInstaller spec file"""
     print("Creating spec file...")
     
-    spec_content = '''# -*- mode: python ; coding: utf-8 -*-
+    # Determine icon path based on has_icon parameter
+    icon_line = "icon='resources/icon.ico'," if has_icon else "icon=None,"
+    
+    spec_content = f'''# -*- mode: python ; coding: utf-8 -*-
 
 block_cipher = None
 
@@ -90,7 +93,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='resources/icon.ico' if has_icon else None,
+    {icon_line}
     version='version_info.txt'
 )
 '''
