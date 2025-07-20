@@ -233,36 +233,45 @@ jobs:
         [ -f "ScreenRecorder-Windows.zip" ] && echo "✅ Windows zip found" || echo "❌ Windows zip not found"
         [ -f "ScreenRecorder-macOS.tar.gz" ] && echo "✅ macOS tar.gz found" || echo "❌ macOS tar.gz not found"
 
-    - name: Check available packages
+    - name: Final file check for release
       run: |
-        echo "Checking available packages for release..."
+        echo "=== Final Release File Check ==="
+        echo "Current directory: $(pwd)"
+        echo "All files in current directory:"
+        ls -la
 
-        if [ -f "ScreenRecorder-Windows.zip" ]; then
-          echo "WINDOWS_AVAILABLE=true" >> $GITHUB_ENV
-          echo "✅ Windows package available: $(du -h ScreenRecorder-Windows.zip | cut -f1)"
-        else
-          echo "WINDOWS_AVAILABLE=false" >> $GITHUB_ENV
-          echo "❌ Windows package not available"
-        fi
+        echo -e "\n=== Looking for release files ==="
+        echo "Windows zip files:"
+        ls -la ScreenRecorder-*Windows*.zip 2>/dev/null || echo "No Windows zip files found"
 
-        if [ -f "ScreenRecorder-macOS.tar.gz" ]; then
-          echo "MACOS_AVAILABLE=true" >> $GITHUB_ENV
-          echo "✅ macOS package available: $(du -h ScreenRecorder-macOS.tar.gz | cut -f1)"
-        else
-          echo "MACOS_AVAILABLE=false" >> $GITHUB_ENV
-          echo "❌ macOS package not available"
-        fi
+        echo "macOS tar.gz files:"
+        ls -la ScreenRecorder-*macOS*.tar.gz 2>/dev/null || echo "No macOS tar.gz files found"
+
+        echo -e "\n=== All ScreenRecorder files ==="
+        ls -la ScreenRecorder-* 2>/dev/null || echo "No ScreenRecorder files found"
+
+        echo -e "\n=== Files that will be uploaded to release ==="
+        for pattern in "ScreenRecorder-*.zip" "ScreenRecorder-*.tar.gz"; do
+          if ls $pattern 1> /dev/null 2>&1; then
+            for file in $pattern; do
+              if [ -f "$file" ]; then
+                echo "✅ $file ($(du -h "$file" | cut -f1))"
+              fi
+            done
+          fi
+        done
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          ScreenRecorder-Windows.zip
-          ScreenRecorder-macOS.tar.gz
+          ScreenRecorder-*.zip
+          ScreenRecorder-*.tar.gz
         draft: false
         prerelease: false
         generate_release_notes: true
         name: Release ${{ github.ref_name }}
+        fail_on_unmatched_files: false
         body: |
           ## 🎉 现代录屏工具 ${{ github.ref_name }}
 
@@ -298,6 +307,5 @@ jobs:
 
           ---
           🤖 自动构建 | 构建ID: ${{ github.run_id }}
-        fail_on_unmatched_files: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
