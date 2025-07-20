@@ -83,16 +83,16 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
     
+    - name: Install system dependencies
+      run: |
+        # 安装可能需要的系统依赖
+        brew install portaudio
+    
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller
-    
-    - name: Install system dependencies
-      run: |
-        # 安装可能需要的系统依赖
-        brew install portaudio
     
     - name: Create resources directory
       run: |
