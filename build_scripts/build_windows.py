@@ -33,7 +33,7 @@ def create_spec_file(has_icon=False):
     print("Creating spec file...")
     
     # Determine icon path based on has_icon parameter
-    icon_line = "icon='resources/icon.ico'," if has_icon else "icon=None,"
+    icon_value = "'resources/icon.ico'" if has_icon else "None"
     
     spec_content = f"""# -*- mode: python ; coding: utf-8 -*-
 
@@ -93,7 +93,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    {icon_line}
+    icon={icon_value},
     version='version_info.txt'
 )
 """
