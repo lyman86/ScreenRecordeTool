@@ -1,5 +1,5 @@
 """
-macOS打包脚本
+macOS Build Script
 """
 
 import os
@@ -9,31 +9,34 @@ import subprocess
 import plistlib
 from pathlib import Path
 
-# 项目根目录
+# Project root directory
 PROJECT_ROOT = Path(__file__).parent.parent
 BUILD_DIR = PROJECT_ROOT / "build"
 DIST_DIR = PROJECT_ROOT / "dist"
 SPEC_FILE = PROJECT_ROOT / "main.spec"
 
 def clean_build():
-    """清理构建目录"""
-    print("清理构建目录...")
+    """Clean build directory"""
+    print("Cleaning build directory...")
     
     dirs_to_clean = [BUILD_DIR, DIST_DIR]
     for dir_path in dirs_to_clean:
         if dir_path.exists():
             shutil.rmtree(dir_path)
-            print(f"已删除: {dir_path}")
+            print(f"Deleted: {dir_path}")
     
     if SPEC_FILE.exists():
         SPEC_FILE.unlink()
-        print(f"已删除: {SPEC_FILE}")
+        print(f"Deleted: {SPEC_FILE}")
 
-def create_spec_file():
-    """创建PyInstaller spec文件"""
-    print("创建spec文件...")
+def create_spec_file(has_icon=False):
+    """Create PyInstaller spec file"""
+    print("Creating spec file...")
     
-    spec_content = '''# -*- mode: python ; coding: utf-8 -*-
+    # Determine icon configuration
+    icon_config = "icon='resources/icon.icns'," if has_icon else "# icon=None,  # No icon file available"
+    
+    spec_content = f"""# -*- mode: python ; coding: utf-8 -*-
 
 block_cipher = None
 
@@ -57,12 +60,82 @@ a = Analysis(
         'pynput',
         'pillow',
         'imageio',
-        'psutil'
+        'psutil',
+        'wave',
+        'threading',
+        'queue',
+        'time',
+        'os',
+        'sys',
+        'json',
+        'pathlib',
+        'subprocess',
+        'platform'
     ],
     hookspath=[],
-    hooksconfig={},
+    hooksconfig={{}},
     runtime_hooks=[],
-    excludes=[],
+    excludes=[
+        'tkinter',
+        'matplotlib',
+        'scipy',
+        'pandas',
+        'jupyter',
+        'IPython',
+        'notebook',
+        'sphinx',
+        'pytest',
+        'setuptools',
+        'distutils',
+        'email',
+        'html',
+        'http',
+        'urllib3',
+        'xml',
+        'xmlrpc',
+        'pydoc',
+        'doctest',
+        'unittest',
+        'test',
+        'tests',
+        '_pytest',
+        'pkg_resources',
+        'PyQt6.QtWebEngine',
+        'PyQt6.QtWebEngineWidgets',
+        'PyQt6.QtWebEngineCore',
+        'PyQt6.QtNetwork',
+        'PyQt6.QtSql',
+        'PyQt6.QtTest',
+        'PyQt6.QtXml',
+        'PyQt6.QtOpenGL',
+        'PyQt6.QtPrintSupport',
+        'PyQt6.QtSvg',
+        'PyQt6.QtDesigner',
+        'PyQt6.QtHelp',
+        'PyQt6.QtMultimedia',
+        'PyQt6.QtMultimediaWidgets',
+        'PyQt6.QtQml',
+        'PyQt6.QtQuick',
+        'PyQt6.QtQuickWidgets',
+        'PyQt6.QtSensors',
+        'PyQt6.QtSerialPort',
+        'PyQt6.QtWebChannel',
+        'PyQt6.QtWebSockets',
+        'PyQt6.Qt3DAnimation',
+        'PyQt6.Qt3DCore',
+        'PyQt6.Qt3DExtras',
+        'PyQt6.Qt3DInput',
+        'PyQt6.Qt3DLogic',
+        'PyQt6.Qt3DRender',
+        'PyQt6.QtBluetooth',
+        'PyQt6.QtCharts',
+        'PyQt6.QtDataVisualization',
+        'PyQt6.QtLocation',
+        'PyQt6.QtNfc',
+        'PyQt6.QtPositioning',
+        'PyQt6.QtRemoteObjects',
+        'PyQt6.QtTextToSpeech'
+    ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -79,14 +152,14 @@ exe = EXE(
     name='ScreenRecorder',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=False,
+    strip=True,
     upx=True,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
-    entitlements_file='entitlements.plist',
+    entitlements_file=None,
 )
 
 coll = COLLECT(
@@ -94,41 +167,54 @@ coll = COLLECT(
     a.binaries,
     a.zipfiles,
     a.datas,
-    strip=False,
+    strip=True,
     upx=True,
-    upx_exclude=[],
+    upx_exclude=[
+        'vcruntime140.dll',
+        'python3.dll',
+        'python311.dll',
+        'libssl.dylib',
+        'libcrypto.dylib',
+        'QtCore',
+        'QtGui',
+        'QtWidgets',
+        'libopencv_core.dylib',
+        'libopencv_imgproc.dylib',
+        'libopencv_imgcodecs.dylib',
+        'libopencv_videoio.dylib'
+    ],
     name='ScreenRecorder',
 )
 
 app = BUNDLE(
     coll,
     name='ScreenRecorder.app',
-    icon='resources/icon.icns',
+    {icon_config}
     bundle_identifier='com.yourcompany.screenrecorder',
-    info_plist={
-        'CFBundleName': '现代录屏工具',
-        'CFBundleDisplayName': '现代录屏工具',
+    info_plist={{
+        'CFBundleName': 'Modern Screen Recorder',
+        'CFBundleDisplayName': 'Modern Screen Recorder',
         'CFBundleVersion': '1.0.0',
         'CFBundleShortVersionString': '1.0.0',
         'NSHighResolutionCapable': True,
-        'NSCameraUsageDescription': '此应用需要访问摄像头以录制视频',
-        'NSMicrophoneUsageDescription': '此应用需要访问麦克风以录制音频',
-        'NSScreenCaptureDescription': '此应用需要录制屏幕内容',
+        'NSCameraUsageDescription': 'This app needs access to camera for video recording',
+        'NSMicrophoneUsageDescription': 'This app needs access to microphone for audio recording',
+        'NSScreenCaptureDescription': 'This app needs to record screen content',
         'LSMinimumSystemVersion': '10.15.0',
         'NSRequiresAquaSystemAppearance': False,
         'NSSupportsAutomaticGraphicsSwitching': True,
-    },
+    }},
 )
-'''
+"""
     
     with open(SPEC_FILE, 'w', encoding='utf-8') as f:
         f.write(spec_content)
     
-    print(f"已创建: {SPEC_FILE}")
+    print(f"Created: {SPEC_FILE}")
 
 def create_entitlements():
-    """创建权限文件"""
-    print("创建权限文件...")
+    """Create entitlements file"""
+    print("Creating entitlements file...")
     
     entitlements = {
         'com.apple.security.device.audio-input': True,
@@ -146,63 +232,83 @@ def create_entitlements():
     with open(entitlements_file, 'wb') as f:
         plistlib.dump(entitlements, f)
     
-    print(f"已创建: {entitlements_file}")
+    print(f"Created: {entitlements_file}")
 
 def create_icon():
-    """创建应用图标"""
-    print("检查应用图标...")
+    """Create application icon"""
+    print("Checking application icon...")
     
     icon_dir = PROJECT_ROOT / "resources"
     icon_dir.mkdir(exist_ok=True)
     
     icon_file = icon_dir / "icon.icns"
     if not icon_file.exists():
-        print("警告: 未找到icon.icns文件，将使用默认图标")
-        # 可以从PNG文件创建ICNS文件
+        print("Warning: icon.icns file not found, will use default icon")
+        # Can create ICNS file from PNG file
         png_file = icon_dir / "icon.png"
         if png_file.exists():
             create_icns_from_png(png_file, icon_file)
-    else:
-        print(f"找到图标文件: {icon_file}")
+            return icon_file.exists()  # Return True if ICNS was created successfully
+        return False
+    
+    # Check if the icon file is valid
+    try:
+        from PIL import Image
+        with Image.open(icon_file) as img:
+            print(f"Found valid icon file: {icon_file} ({img.format}, {img.size})")
+            return True
+    except Exception as e:
+        print(f"Warning: icon.icns file exists but is not a valid image: {e}")
+        print("The app will use the default PyInstaller icon")
+        return False
 
 def create_icns_from_png(png_file, icns_file):
-    """从PNG文件创建ICNS文件"""
+    """Create ICNS file from PNG file"""
     try:
-        # 使用sips命令转换（macOS内置工具）
+        # Use sips command for conversion (macOS built-in tool)
         subprocess.run([
             'sips', '-s', 'format', 'icns', 
             str(png_file), '--out', str(icns_file)
         ], check=True)
-        print(f"已从PNG创建ICNS: {icns_file}")
+        print(f"Created ICNS from PNG: {icns_file}")
     except subprocess.CalledProcessError:
-        print("无法从PNG创建ICNS文件")
+        print("Unable to create ICNS file from PNG")
 
 def install_dependencies():
-    """安装依赖"""
-    print("检查并安装依赖...")
+    """Install dependencies"""
+    print("Checking and installing dependencies...")
     
     try:
-        # 检查PyInstaller
+        # Check PyInstaller
         import PyInstaller
-        print(f"PyInstaller版本: {PyInstaller.__version__}")
+        print(f"PyInstaller version: {PyInstaller.__version__}")
     except ImportError:
-        print("安装PyInstaller...")
+        print("Installing PyInstaller...")
         subprocess.run([sys.executable, "-m", "pip", "install", "pyinstaller"])
     
-    # 安装其他依赖
+    # Install portaudio for PyAudio
+    print("Installing portaudio for PyAudio...")
+    try:
+        subprocess.run(["brew", "install", "portaudio"], check=True)
+        print("portaudio installed successfully")
+    except subprocess.CalledProcessError:
+        print("Warning: Failed to install portaudio via brew")
+        print("Please install portaudio manually: brew install portaudio")
+    
+    # Install other dependencies
     requirements_file = PROJECT_ROOT / "requirements.txt"
     if requirements_file.exists():
-        print("安装项目依赖...")
+        print("Installing project dependencies...")
         subprocess.run([sys.executable, "-m", "pip", "install", "-r", str(requirements_file)])
 
 def build_app():
-    """构建应用程序"""
-    print("开始构建应用程序...")
+    """Build application"""
+    print("Starting to build application...")
     
-    # 切换到项目根目录
+    # Change to project root directory
     os.chdir(PROJECT_ROOT)
     
-    # 运行PyInstaller
+    # Run PyInstaller
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--clean",
@@ -210,73 +316,94 @@ def build_app():
         str(SPEC_FILE)
     ]
     
-    print(f"执行命令: {' '.join(cmd)}")
+    print(f"Executing command: {' '.join(cmd)}")
     result = subprocess.run(cmd, capture_output=True, text=True)
     
     if result.returncode == 0:
-        print("构建成功!")
+        print("Build successful!")
         app_path = DIST_DIR / "ScreenRecorder.app"
-        print(f"应用程序位置: {app_path}")
+        print(f"Application location: {app_path}")
+        
+        # Check application size
+        if app_path.exists():
+            try:
+                total_size = 0
+                for dirpath, dirnames, filenames in os.walk(app_path):
+                    for filename in filenames:
+                        filepath = os.path.join(dirpath, filename)
+                        if os.path.exists(filepath):
+                            total_size += os.path.getsize(filepath)
+                
+                size_mb = total_size / (1024 * 1024)
+                print(f"Application bundle size: {size_mb:.1f} MB")
+                
+                if size_mb > 700:  # Leave some margin for DMG overhead
+                    print(f"Warning: Application size ({size_mb:.1f} MB) is close to DMG limit (800 MB)")
+                    print("Consider optimizing the application bundle or increasing DMG size")
+                    
+            except Exception as e:
+                print(f"Warning: Could not calculate application size: {e}")
+        
         return app_path
     else:
-        print("构建失败!")
-        print("错误输出:")
+        print("Build failed!")
+        print("Error output:")
         print(result.stderr)
         return None
 
 def sign_app(app_path):
-    """签名应用程序"""
-    print("签名应用程序...")
+    """Sign application"""
+    print("Signing application...")
     
-    # 检查是否有开发者证书
+    # Check if developer certificate exists
     try:
         result = subprocess.run([
             'security', 'find-identity', '-v', '-p', 'codesigning'
         ], capture_output=True, text=True)
         
         if "Developer ID Application" in result.stdout:
-            print("找到开发者证书，开始签名...")
+            print("Found developer certificate, starting to sign...")
             
-            # 签名应用程序
+            # Sign application
             subprocess.run([
                 'codesign', '--force', '--deep', '--sign', 
                 'Developer ID Application', str(app_path)
             ], check=True)
             
-            print("签名完成")
+            print("Signing completed")
             return True
         else:
-            print("未找到开发者证书，跳过签名")
+            print("Developer certificate not found, skipping signing")
             return False
     except subprocess.CalledProcessError as e:
-        print(f"签名失败: {e}")
+        print(f"Signing failed: {e}")
         return False
 
 def create_dmg(app_path):
-    """创建DMG安装包"""
-    print("创建DMG安装包...")
+    """Create DMG installer"""
+    print("Creating DMG installer...")
     
     dmg_name = "ScreenRecorder_v1.0.0.dmg"
     dmg_path = DIST_DIR / dmg_name
     
-    # 删除已存在的DMG
+    # Delete existing DMG
     if dmg_path.exists():
         dmg_path.unlink()
     
     try:
-        # 创建临时DMG
+        # Create temporary DMG with larger size to accommodate the application
         temp_dmg = DIST_DIR / "temp.dmg"
         subprocess.run([
-            'hdiutil', 'create', '-size', '200m', '-fs', 'HFS+',
+            'hdiutil', 'create', '-size', '800m', '-fs', 'HFS+',
             '-volname', 'ScreenRecorder', str(temp_dmg)
         ], check=True)
         
-        # 挂载DMG
+        # Mount DMG
         mount_result = subprocess.run([
             'hdiutil', 'attach', str(temp_dmg)
         ], capture_output=True, text=True, check=True)
         
-        # 获取挂载点
+        # Get mount point
         mount_point = None
         for line in mount_result.stdout.split('\n'):
             if '/Volumes/ScreenRecorder' in line:
@@ -284,90 +411,111 @@ def create_dmg(app_path):
                 break
         
         if mount_point:
-            # 复制应用程序
-            shutil.copytree(app_path, f"{mount_point}/ScreenRecorder.app")
+            try:
+                # Check available space before copying
+                import shutil as shutil_disk
+                total, used, free = shutil_disk.disk_usage(mount_point)
+                print(f"DMG available space: {free / (1024*1024):.1f} MB")
+                
+                # Copy application
+                print("Copying application to DMG...")
+                shutil.copytree(app_path, f"{mount_point}/ScreenRecorder.app")
+                
+                # Create symbolic link to Applications folder
+                print("Creating Applications symlink...")
+                os.symlink('/Applications', f"{mount_point}/Applications")
+                
+            except OSError as e:
+                if "No space left on device" in str(e):
+                    print(f"Error: Insufficient space in DMG. The application is too large for the current DMG size.")
+                    print(f"Consider increasing DMG size or optimizing the application bundle.")
+                    # Try to unmount before failing
+                    try:
+                        subprocess.run(['hdiutil', 'detach', mount_point], check=False)
+                    except:
+                        pass
+                    return None
+                else:
+                    raise e
             
-            # 创建应用程序文件夹的符号链接
-            os.symlink('/Applications', f"{mount_point}/Applications")
-            
-            # 卸载DMG
+            # Unmount DMG
             subprocess.run(['hdiutil', 'detach', mount_point], check=True)
             
-            # 转换为压缩的DMG
+            # Convert to compressed DMG
             subprocess.run([
                 'hdiutil', 'convert', str(temp_dmg), '-format', 'UDZO',
                 '-o', str(dmg_path)
             ], check=True)
             
-            # 删除临时DMG
+            # Delete temporary DMG
             temp_dmg.unlink()
             
-            print(f"DMG创建完成: {dmg_path}")
+            print(f"DMG creation completed: {dmg_path}")
             return dmg_path
         else:
-            print("无法找到挂载点")
+            print("Unable to find mount point")
             return None
             
     except subprocess.CalledProcessError as e:
-        print(f"创建DMG失败: {e}")
+        print(f"DMG creation failed: {e}")
         return None
 
 def notarize_app(app_path):
-    """公证应用程序（需要Apple ID）"""
-    print("应用程序公证...")
-    print("注意: 公证需要Apple ID和应用专用密码")
-    print("请参考Apple官方文档进行公证配置")
+    """Notarize application (requires Apple ID)"""
+    print("App notarization...")
+    print("Note: Notarization requires Apple ID and app-specific password")
+    print("Please refer to Apple official documentation for notarization configuration")
     
-    # 这里只是示例，实际公证需要配置Apple ID
+    # This is just an example, actual notarization requires Apple ID configuration
     # xcrun altool --notarize-app --primary-bundle-id "com.yourcompany.screenrecorder" 
     #              --username "your-apple-id" --password "app-specific-password" 
     #              --file "ScreenRecorder.dmg"
 
 def main():
-    """主函数"""
+    """Main function"""
     print("=" * 50)
-    print("macOS打包脚本")
+    print("macOS Build Script")
     print("=" * 50)
     
     try:
-        # 1. 清理构建目录
+        # 1. Clean build directory
         clean_build()
         
-        # 2. 安装依赖
+        # 2. Install dependencies
         install_dependencies()
         
-        # 3. 创建必要文件
+        # 3. Create necessary files
         create_entitlements()
-        create_icon()
-        create_spec_file()
+        has_icon = create_icon()
+        create_spec_file(has_icon)
         
-        # 4. 构建应用程序
+        # 4. Build application
         app_path = build_app()
         if app_path and app_path.exists():
-            print(f"\n构建完成: {app_path}")
+            print(f"\nBuild completed: {app_path}")
             
-            # 5. 签名应用程序
+            # 5. Sign application
             signed = sign_app(app_path)
             
-            # 6. 创建DMG
+            # 6. Create DMG
             dmg_path = create_dmg(app_path)
             
-            print("\n构建完成!")
-            print(f"应用程序: {app_path}")
+            print("\nBuild completed!")
+            print(f"Application: {app_path}")
             if dmg_path:
-                print(f"安装包: {dmg_path}")
+                print(f"Installer: {dmg_path}")
             
-            print("\n后续步骤:")
-            print("1. 测试应用程序")
+            print("\nNext steps:")
+            print("1. Test the application")
             if not signed:
-                print("2. 配置开发者证书并重新签名")
-            print("3. 如需发布到App Store，请进行公证")
+                print("2. Configure developer certificate and re-sign")
+            print("3. If publishing to App Store, perform notarization")
         else:
-            print("\n构建失败!")
+            print("\nBuild failed!")
             return 1
     
     except Exception as e:
-        print(f"构建过程中发生错误: {e}")
+        print(f"Error occurred during build: {e}")
         return 1
     
     return 0

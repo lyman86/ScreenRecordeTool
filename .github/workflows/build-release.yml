@@ -1,0 +1,219 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # 触发条件：推送版本标签 (如 v1.0.0)
+  workflow_dispatch:  # 允许手动触发
+    inputs:
+      tag_name:
+        description: 'Release tag name (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~\AppData\Local\pip\Cache
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Create resources directory
+      run: |
+        if (!(Test-Path "resources")) { New-Item -ItemType Directory -Path "resources" }
+        # 创建一个简单的ICO文件占位符
+        New-Item -ItemType File -Path "resources/icon.ico" -Force
+    
+    - name: Build Windows executable
+      run: |
+        python build_scripts/build_windows.py
+    
+    - name: Create Windows installer (NSIS)
+      run: |
+        # 如果有NSIS，可以创建安装程序
+        # makensis installer.nsi
+        echo "Windows executable built successfully"
+    
+    - name: Upload Windows artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-build
+        path: |
+          dist/ScreenRecorder.exe
+          installer.nsi
+        retention-days: 30
+
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/Library/Caches/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install system dependencies
+      run: |
+        # 安装可能需要的系统依赖
+        brew install portaudio
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Create resources directory
+      run: |
+        mkdir -p resources
+        # 创建一个简单的ICNS文件占位符
+        touch resources/icon.icns
+    
+    - name: Build macOS app
+      run: |
+        python build_scripts/build_macos.py
+    
+    - name: Upload macOS artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-build
+        path: |
+          dist/ScreenRecorder.app
+          dist/*.dmg
+        retention-days: 30
+
+  create-release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Get tag name
+      id: get_tag
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "tag_name=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+        else
+          echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Download Windows artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: windows-build
+        path: ./windows-build
+    
+    - name: Download macOS artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: macos-build
+        path: ./macos-build
+    
+    - name: Create release archives
+      run: |
+        # 创建Windows发布包
+        cd windows-build
+        zip -r ../ScreenRecorder-Windows-${{ steps.get_tag.outputs.tag_name }}.zip .
+        cd ..
+        
+        # 创建macOS发布包
+        cd macos-build
+        if [ -f *.dmg ]; then
+          cp *.dmg ../ScreenRecorder-macOS-${{ steps.get_tag.outputs.tag_name }}.dmg
+        else
+          tar -czf ../ScreenRecorder-macOS-${{ steps.get_tag.outputs.tag_name }}.tar.gz .
+        fi
+        cd ..
+    
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        cat > release_notes.md << 'EOF'
+        ## 🎉 现代录屏工具 ${{ steps.get_tag.outputs.tag_name }}
+        
+        ### ✨ 新功能
+        - 高质量屏幕录制
+        - 多种视频格式支持 (MP4, AVI, MOV)
+        - 音频录制功能
+        - 区域选择录制
+        - 实时预览
+        
+        ### 📦 下载说明
+        - **Windows用户**: 下载 `ScreenRecorder-Windows-${{ steps.get_tag.outputs.tag_name }}.zip`
+        - **macOS用户**: 下载 `ScreenRecorder-macOS-${{ steps.get_tag.outputs.tag_name }}.dmg` 或 `.tar.gz`
+        
+        ### 🔧 系统要求
+        - **Windows**: Windows 10 或更高版本
+        - **macOS**: macOS 10.15 (Catalina) 或更高版本
+        - **Python**: 3.8+ (如果从源码运行)
+        
+        ### 📝 更新日志
+        请查看 [CHANGELOG.md](CHANGELOG.md) 获取详细更新信息。
+        
+        ---
+        
+        **安装说明**:
+        1. 下载对应平台的安装包
+        2. 解压/安装到本地
+        3. 运行应用程序
+        4. 首次运行时可能需要授予屏幕录制权限
+        EOF
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.get_tag.outputs.tag_name }}
+        name: 现代录屏工具 ${{ steps.get_tag.outputs.tag_name }}
+        body_path: release_notes.md
+        draft: false
+        prerelease: false
+        files: |
+          ScreenRecorder-Windows-${{ steps.get_tag.outputs.tag_name }}.zip
+          ScreenRecorder-macOS-${{ steps.get_tag.outputs.tag_name }}.*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Update latest release info
+      run: |
+        echo "✅ Release ${{ steps.get_tag.outputs.tag_name }} created successfully!"
+        echo "📦 Windows package: ScreenRecorder-Windows-${{ steps.get_tag.outputs.tag_name }}.zip"
+        echo "🍎 macOS package: ScreenRecorder-macOS-${{ steps.get_tag.outputs.tag_name }}.*"
+        echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ steps.get_tag.outputs.tag_name }}"

@@ -1,5 +1,5 @@
 """
-Windows打包脚本
+Windows packaging script
 """
 
 import os
@@ -8,31 +8,34 @@ import shutil
 import subprocess
 from pathlib import Path
 
-# 项目根目录
+# Project root directory
 PROJECT_ROOT = Path(__file__).parent.parent
 BUILD_DIR = PROJECT_ROOT / "build"
 DIST_DIR = PROJECT_ROOT / "dist"
 SPEC_FILE = PROJECT_ROOT / "main.spec"
 
 def clean_build():
-    """清理构建目录"""
-    print("清理构建目录...")
+    """Clean build directory"""
+    print("Cleaning build directory...")
     
     dirs_to_clean = [BUILD_DIR, DIST_DIR]
     for dir_path in dirs_to_clean:
         if dir_path.exists():
             shutil.rmtree(dir_path)
-            print(f"已删除: {dir_path}")
+            print(f"Deleted: {dir_path}")
     
     if SPEC_FILE.exists():
         SPEC_FILE.unlink()
-        print(f"已删除: {SPEC_FILE}")
+        print(f"Deleted: {SPEC_FILE}")
 
-def create_spec_file():
-    """创建PyInstaller spec文件"""
-    print("创建spec文件...")
+def create_spec_file(has_icon=False):
+    """Create PyInstaller spec file"""
+    print("Creating spec file...")
     
-    spec_content = '''# -*- mode: python ; coding: utf-8 -*-
+    # Determine icon path based on has_icon parameter
+    icon_value = "'resources/icon.ico'" if has_icon else "None"
+    
+    spec_content = f"""# -*- mode: python ; coding: utf-8 -*-
 
 block_cipher = None
 
@@ -56,10 +59,20 @@ a = Analysis(
         'pynput',
         'pillow',
         'imageio',
-        'psutil'
+        'psutil',
+        'wave',
+        'threading',
+        'queue',
+        'time',
+        'os',
+        'sys',
+        'json',
+        'pathlib',
+        'subprocess',
+        'platform'
     ],
     hookspath=[],
-    hooksconfig={},
+    hooksconfig=[],
     runtime_hooks=[],
     excludes=[],
     win_no_prefer_redirects=False,
@@ -90,19 +103,19 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='resources/icon.ico',
+    icon={icon_value},
     version='version_info.txt'
 )
-'''
+"""
     
     with open(SPEC_FILE, 'w', encoding='utf-8') as f:
         f.write(spec_content)
     
-    print(f"已创建: {SPEC_FILE}")
+    print(f"Created: {SPEC_FILE}")
 
 def create_version_info():
-    """创建版本信息文件"""
-    print("创建版本信息文件...")
+    """Create version info file"""
+    print("Creating version info file...")
     
     version_info = '''# UTF-8
 #
@@ -125,12 +138,12 @@ VSVersionInfo(
       StringTable(
         u'040904B0',
         [StringStruct(u'CompanyName', u'Your Company'),
-        StringStruct(u'FileDescription', u'现代录屏工具'),
+        StringStruct(u'FileDescription', u'Modern Screen Recorder'),
         StringStruct(u'FileVersion', u'1.0.0.0'),
         StringStruct(u'InternalName', u'ScreenRecorder'),
         StringStruct(u'LegalCopyright', u'Copyright © 2024 Your Company'),
         StringStruct(u'OriginalFilename', u'ScreenRecorder.exe'),
-        StringStruct(u'ProductName', u'现代录屏工具'),
+        StringStruct(u'ProductName', u'Modern Screen Recorder'),
         StringStruct(u'ProductVersion', u'1.0.0.0')])
       ]), 
     VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
@@ -142,48 +155,58 @@ VSVersionInfo(
     with open(version_file, 'w', encoding='utf-8') as f:
         f.write(version_info)
     
-    print(f"已创建: {version_file}")
+    print(f"Created: {version_file}")
 
 def create_icon():
-    """创建应用图标"""
-    print("检查应用图标...")
+    """Create application icon"""
+    print("Checking application icon...")
     
     icon_dir = PROJECT_ROOT / "resources"
     icon_dir.mkdir(exist_ok=True)
     
     icon_file = icon_dir / "icon.ico"
     if not icon_file.exists():
-        print("警告: 未找到icon.ico文件，将使用默认图标")
-        # 这里可以创建一个简单的默认图标或从网络下载
-    else:
-        print(f"找到图标文件: {icon_file}")
+        print("Warning: icon.ico file not found, skipping icon setup")
+        print("The executable will use the default PyInstaller icon")
+        return False
+    
+    # Check if the icon file is valid
+    try:
+        from PIL import Image
+        with Image.open(icon_file) as img:
+            print(f"Found valid icon file: {icon_file} ({img.format}, {img.size})")
+            return True
+    except Exception as e:
+        print(f"Warning: icon.ico file exists but is not a valid image: {e}")
+        print("The executable will use the default PyInstaller icon")
+        return False
 
 def install_dependencies():
-    """安装依赖"""
-    print("检查并安装依赖...")
+    """Install dependencies"""
+    print("Checking and installing dependencies...")
     
     try:
-        # 检查PyInstaller
+        # Check PyInstaller
         import PyInstaller
-        print(f"PyInstaller版本: {PyInstaller.__version__}")
+        print(f"PyInstaller version: {PyInstaller.__version__}")
     except ImportError:
-        print("安装PyInstaller...")
+        print("Installing PyInstaller...")
         subprocess.run([sys.executable, "-m", "pip", "install", "pyinstaller"])
     
-    # 安装其他依赖
+    # Install other dependencies
     requirements_file = PROJECT_ROOT / "requirements.txt"
     if requirements_file.exists():
-        print("安装项目依赖...")
+        print("Installing project dependencies...")
         subprocess.run([sys.executable, "-m", "pip", "install", "-r", str(requirements_file)])
 
 def build_executable():
-    """构建可执行文件"""
-    print("开始构建可执行文件...")
+    """Build executable"""
+    print("Starting to build executable...")
     
-    # 切换到项目根目录
+    # Change to project root directory
     os.chdir(PROJECT_ROOT)
     
-    # 运行PyInstaller
+    # Run PyInstaller
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--clean",
@@ -191,49 +214,51 @@ def build_executable():
         str(SPEC_FILE)
     ]
     
-    print(f"执行命令: {' '.join(cmd)}")
+    print(f"Executing command: {' '.join(cmd)}")
     result = subprocess.run(cmd, capture_output=True, text=True)
     
     if result.returncode == 0:
-        print("构建成功!")
-        print(f"可执行文件位置: {DIST_DIR / 'ScreenRecorder.exe'}")
+        print("Build successful!")
+        print(f"Executable location: {DIST_DIR / 'ScreenRecorder.exe'}")
     else:
-        print("构建失败!")
-        print("错误输出:")
+        print("Build failed!")
+        print("Error output:")
         print(result.stderr)
         return False
     
     return True
 
+
+
 def create_installer():
-    """创建安装程序（使用NSIS）"""
-    print("创建安装程序...")
+    """Create installer (using NSIS)"""
+    print("Creating installer...")
     
     nsis_script = PROJECT_ROOT / "installer.nsi"
     nsis_content = '''
-; 现代录屏工具安装脚本
+; Modern Screen Recorder Installation Script
 
-!define APP_NAME "现代录屏工具"
+!define APP_NAME "Modern Screen Recorder"
 !define APP_VERSION "1.0.0"
 !define APP_PUBLISHER "Your Company"
 !define APP_EXE "ScreenRecorder.exe"
 
-; 包含现代UI
+; Include modern UI
 !include "MUI2.nsh"
 
-; 基本设置
+; Basic settings
 Name "${APP_NAME}"
 OutFile "ScreenRecorder_Setup.exe"
 InstallDir "$PROGRAMFILES\\${APP_NAME}"
 InstallDirRegKey HKCU "Software\\${APP_NAME}" ""
 RequestExecutionLevel admin
 
-; 界面设置
+; Interface Settings
 !define MUI_ABORTWARNING
 !define MUI_ICON "resources\\icon.ico"
 !define MUI_UNICON "resources\\icon.ico"
 
-; 页面
+; Pages
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_LICENSE "LICENSE.txt"
 !insertmacro MUI_PAGE_DIRECTORY
@@ -245,29 +270,29 @@ RequestExecutionLevel admin
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_UNPAGE_FINISH
 
-; 语言
-!insertmacro MUI_LANGUAGE "SimpChinese"
+; Language
+!insertmacro MUI_LANGUAGE "English"
 
-; 安装部分
-Section "主程序" SecMain
+; Installation Section
+Section "Main Program" SecMain
     SetOutPath "$INSTDIR"
     File /r "dist\\*.*"
     
-    ; 创建快捷方式
+    ; Create shortcuts
     CreateDirectory "$SMPROGRAMS\\${APP_NAME}"
     CreateShortCut "$SMPROGRAMS\\${APP_NAME}\\${APP_NAME}.lnk" "$INSTDIR\\${APP_EXE}"
     CreateShortCut "$DESKTOP\\${APP_NAME}.lnk" "$INSTDIR\\${APP_EXE}"
     
-    ; 写入注册表
+    ; Write registry
     WriteRegStr HKCU "Software\\${APP_NAME}" "" $INSTDIR
     WriteRegStr HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_NAME}" "DisplayName" "${APP_NAME}"
     WriteRegStr HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_NAME}" "UninstallString" "$INSTDIR\\uninstall.exe"
     
-    ; 创建卸载程序
+    ; Create uninstaller
     WriteUninstaller "$INSTDIR\\uninstall.exe"
 SectionEnd
 
-; 卸载部分
+; Uninstall Section
 Section "Uninstall"
     Delete "$INSTDIR\\*.*"
     RMDir /r "$INSTDIR"
@@ -284,45 +309,45 @@ SectionEnd
     with open(nsis_script, 'w', encoding='utf-8') as f:
         f.write(nsis_content)
     
-    print(f"已创建NSIS脚本: {nsis_script}")
-    print("请使用NSIS编译器编译installer.nsi文件来创建安装程序")
+    print(f"NSIS script created: {nsis_script}")
+    print("Please use NSIS compiler to compile installer.nsi file to create installer")
 
 def main():
-    """主函数"""
+    """Main function"""
     print("=" * 50)
-    print("Windows打包脚本")
+    print("Windows Build Script")
     print("=" * 50)
     
     try:
-        # 1. 清理构建目录
+        # 1. Clean build directory
         clean_build()
         
-        # 2. 安装依赖
+        # 2. Install dependencies
         install_dependencies()
         
-        # 3. 创建必要文件
+        # 3. Create necessary files
         create_version_info()
-        create_icon()
-        create_spec_file()
+        has_icon = create_icon()
+        create_spec_file(has_icon)
         
-        # 4. 构建可执行文件
+        # 4. Build executable
         if build_executable():
-            print("\n构建完成!")
-            print(f"可执行文件: {DIST_DIR / 'ScreenRecorder.exe'}")
+            print("\nBuild completed!")
+            print(f"Executable: {DIST_DIR / 'ScreenRecorder.exe'}")
             
-            # 5. 创建安装程序脚本
+            # 5. Create installer script
             create_installer()
             
-            print("\n后续步骤:")
-            print("1. 测试可执行文件")
-            print("2. 使用NSIS编译安装程序")
-            print("3. 测试安装程序")
+            print("\nNext steps:")
+            print("1. Test the executable")
+            print("2. Use NSIS to compile installer")
+            print("3. Test the installer")
         else:
-            print("\n构建失败!")
+            print("\nBuild failed!")
             return 1
     
     except Exception as e:
-        print(f"构建过程中发生错误: {e}")
+        print(f"Error occurred during build: {e}")
         return 1
     
     return 0
