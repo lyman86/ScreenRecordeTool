@@ -240,6 +240,28 @@ def build_app():
         print("Build successful!")
         app_path = DIST_DIR / "ScreenRecorder.app"
         print(f"Application location: {app_path}")
+        
+        # Check application size
+        if app_path.exists():
+            try:
+                import os
+                total_size = 0
+                for dirpath, dirnames, filenames in os.walk(app_path):
+                    for filename in filenames:
+                        filepath = os.path.join(dirpath, filename)
+                        if os.path.exists(filepath):
+                            total_size += os.path.getsize(filepath)
+                
+                size_mb = total_size / (1024 * 1024)
+                print(f"Application bundle size: {size_mb:.1f} MB")
+                
+                if size_mb > 700:  # Leave some margin for DMG overhead
+                    print(f"Warning: Application size ({size_mb:.1f} MB) is close to DMG limit (800 MB)")
+                    print("Consider optimizing the application bundle or increasing DMG size")
+                    
+            except Exception as e:
+                print(f"Warning: Could not calculate application size: {e}")
+        
         return app_path
     else:
         print("Build failed!")
@@ -287,10 +309,10 @@ def create_dmg(app_path):
         dmg_path.unlink()
     
     try:
-        # Create temporary DMG
+        # Create temporary DMG with larger size to accommodate the application
         temp_dmg = DIST_DIR / "temp.dmg"
         subprocess.run([
-            'hdiutil', 'create', '-size', '200m', '-fs', 'HFS+',
+            'hdiutil', 'create', '-size', '800m', '-fs', 'HFS+',
             '-volname', 'ScreenRecorder', str(temp_dmg)
         ], check=True)
         
@@ -307,11 +329,32 @@ def create_dmg(app_path):
                 break
         
         if mount_point:
-            # Copy application
-            shutil.copytree(app_path, f"{mount_point}/ScreenRecorder.app")
-            
-            # Create symbolic link to Applications folder
-            os.symlink('/Applications', f"{mount_point}/Applications")
+            try:
+                # Check available space before copying
+                import shutil as shutil_disk
+                total, used, free = shutil_disk.disk_usage(mount_point)
+                print(f"DMG available space: {free / (1024*1024):.1f} MB")
+                
+                # Copy application
+                print("Copying application to DMG...")
+                shutil.copytree(app_path, f"{mount_point}/ScreenRecorder.app")
+                
+                # Create symbolic link to Applications folder
+                print("Creating Applications symlink...")
+                os.symlink('/Applications', f"{mount_point}/Applications")
+                
+            except OSError as e:
+                if "No space left on device" in str(e):
+                    print(f"Error: Insufficient space in DMG. The application is too large for the current DMG size.")
+                    print(f"Consider increasing DMG size or optimizing the application bundle.")
+                    # Try to unmount before failing
+                    try:
+                        subprocess.run(['hdiutil', 'detach', mount_point], check=False)
+                    except:
+                        pass
+                    return None
+                else:
+                    raise e
             
             # Unmount DMG
             subprocess.run(['hdiutil', 'detach', mount_point], check=True)
