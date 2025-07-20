@@ -48,7 +48,7 @@ jobs:
         
     - name: Build executable
       run: |
-        python scripts/ci_build.py
+        python scripts/ci_build_en.py
       continue-on-error: true
         
     - name: Upload Windows artifact
