@@ -1,0 +1,173 @@
+name: Debug Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform to test (windows-latest, macos-latest, or both)'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+        - windows-latest
+        - macos-latest
+        - both
+
+jobs:
+  debug-build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ${{ github.event.inputs.platform == 'both' && fromJSON('["windows-latest", "macos-latest"]') || fromJSON(format('["{0}"]', github.event.inputs.platform)) }}
+        python-version: ['3.11']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: System Information
+      shell: bash
+      run: |
+        echo "=== System Information ==="
+        echo "OS: $(uname -a)"
+        echo "Python: $(python --version)"
+        echo "Pip: $(pip --version)"
+        echo "Working Directory: $(pwd)"
+        echo "Available Space: $(df -h . | tail -1)"
+        
+    - name: Install system dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install portaudio
+        
+    - name: Install Python dependencies
+      shell: bash
+      run: |
+        echo "=== Installing Dependencies ==="
+        python -m pip install --upgrade pip setuptools wheel
+        
+        echo "=== Installing CI Requirements ==="
+        pip install -r requirements-ci.txt || echo "CI requirements failed"
+        
+        echo "=== Installing PyInstaller ==="
+        pip install PyInstaller || echo "PyInstaller failed"
+        
+        echo "=== Verifying Installations ==="
+        pip list | grep -E "(PyQt6|opencv|pillow|numpy|mss|psutil|PyInstaller)"
+        
+    - name: Create resources directory
+      shell: bash
+      run: |
+        mkdir -p resources
+        echo "Created resources directory"
+        
+    - name: Test basic imports
+      shell: bash
+      run: |
+        echo "=== Testing Basic Imports ==="
+        python -c "import sys; print('Python path:', sys.path[:3])"
+        python -c "import PyQt6; print('PyQt6 version:', PyQt6.QtCore.qVersion())" || echo "PyQt6 import failed"
+        python -c "import cv2; print('OpenCV version:', cv2.__version__)" || echo "OpenCV import failed"
+        python -c "import numpy; print('NumPy version:', numpy.__version__)" || echo "NumPy import failed"
+        python -c "import PIL; print('Pillow version:', PIL.__version__)" || echo "Pillow import failed"
+        python -c "import mss; print('MSS available')" || echo "MSS import failed"
+        python -c "import psutil; print('PSUtil version:', psutil.__version__)" || echo "PSUtil import failed"
+        
+    - name: Test config loading
+      shell: bash
+      run: |
+        echo "=== Testing Config Loading ==="
+        python -c "
+import sys
+sys.path.insert(0, 'src')
+try:
+    from config.settings import AppConfig
+    print('✅ Config loaded successfully')
+    print('App name:', AppConfig.APP_NAME)
+    print('App version:', AppConfig.APP_VERSION)
+except Exception as e:
+    print('❌ Config loading failed:', e)
+    import traceback
+    traceback.print_exc()
+"
+        
+    - name: Run installation test
+      shell: bash
+      run: |
+        echo "=== Running Installation Test ==="
+        python test_installation_en.py || echo "Installation test completed with warnings"
+        
+    - name: Test PyInstaller
+      shell: bash
+      run: |
+        echo "=== Testing PyInstaller ==="
+        python -m PyInstaller --version
+        
+        echo "=== Creating Simple Test Script ==="
+        cat > test_simple.py << 'EOF'
+import sys
+print("Hello from test script!")
+print(f"Python version: {sys.version}")
+print("Test completed successfully")
+EOF
+        
+        echo "=== Building Simple Test ==="
+        python -m PyInstaller --onefile --console --name test_simple test_simple.py
+        
+        echo "=== Checking Simple Build Output ==="
+        if [ -f "dist/test_simple" ] || [ -f "dist/test_simple.exe" ]; then
+            echo "✅ Simple build successful"
+            ls -la dist/
+        else
+            echo "❌ Simple build failed"
+            ls -la dist/ || echo "No dist directory"
+        fi
+        
+    - name: Run CI build script
+      shell: bash
+      run: |
+        echo "=== Running CI Build Script ==="
+        python scripts/ci_build_en.py
+        
+    - name: Check build results
+      shell: bash
+      run: |
+        echo "=== Build Results Analysis ==="
+        echo "Current directory contents:"
+        ls -la
+        
+        echo -e "\nDist directory analysis:"
+        if [ -d "dist" ]; then
+            echo "✅ Dist directory exists"
+            ls -la dist/
+            echo "File count: $(find dist -type f | wc -l)"
+            echo "Total size: $(du -sh dist/ 2>/dev/null || echo 'Unknown')"
+        else
+            echo "❌ Dist directory not found"
+        fi
+        
+        echo -e "\nBuild directory analysis:"
+        if [ -d "build" ]; then
+            echo "Build directory exists"
+            ls -la build/
+        else
+            echo "No build directory"
+        fi
+        
+    - name: Upload debug artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: debug-${{ runner.os }}-${{ matrix.python-version }}
+        path: |
+          dist/
+          build/
+          *.spec
+          *.log
+        if-no-files-found: ignore
+        retention-days: 1

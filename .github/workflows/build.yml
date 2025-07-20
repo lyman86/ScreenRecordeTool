@@ -96,14 +96,25 @@ jobs:
           echo "❌ dist directory not found"
         fi
 
+    - name: Check if build succeeded
+      run: |
+        echo "=== Build Success Check ==="
+        if [ -d "dist" ] && [ "$(find dist -type f | wc -l)" -gt 0 ]; then
+          echo "✅ Build appears successful - dist directory contains files"
+          echo "BUILD_SUCCESS=true" >> $GITHUB_ENV
+        else
+          echo "❌ Build appears to have failed - no files in dist directory"
+          echo "BUILD_SUCCESS=false" >> $GITHUB_ENV
+        fi
+      shell: bash
+
     - name: Upload Windows artifact
       if: runner.os == 'Windows'
       uses: actions/upload-artifact@v4
       with:
         name: ScreenRecorder-Windows-${{ matrix.python-version }}
         path: dist/
-        if-no-files-found: warn
-      continue-on-error: true
+        if-no-files-found: ignore
 
     - name: Upload macOS artifact
       if: runner.os == 'macOS'
@@ -111,8 +122,7 @@ jobs:
       with:
         name: ScreenRecorder-macOS-${{ matrix.python-version }}
         path: dist/
-        if-no-files-found: warn
-      continue-on-error: true
+        if-no-files-found: ignore
 
   release:
     needs: build
@@ -134,12 +144,24 @@ jobs:
 
     - name: List downloaded artifacts
       run: |
-        echo "Listing all downloaded files:"
-        find artifacts/ -type f -name "*" | head -20 || echo "No files found"
-        echo "Listing directories:"
-        find artifacts/ -type d -name "*" | head -10 || echo "No directories found"
-        echo "Artifact structure:"
-        ls -la artifacts/ || echo "Artifacts directory not found"
+        echo "=== Artifact Analysis ==="
+        echo "Current directory:"
+        pwd
+        ls -la
+
+        echo -e "\n=== Artifacts directory structure ==="
+        if [ -d "artifacts" ]; then
+          echo "Artifacts directory exists"
+          ls -la artifacts/
+          echo -e "\n=== All files in artifacts (recursive) ==="
+          find artifacts/ -type f -ls 2>/dev/null || echo "No files found"
+          echo -e "\n=== All directories in artifacts ==="
+          find artifacts/ -type d -ls 2>/dev/null || echo "No directories found"
+          echo -e "\n=== Artifacts tree structure ==="
+          tree artifacts/ 2>/dev/null || find artifacts/ -print | sed -e 's;[^/]*/;|____;g;s;____|; |;g'
+        else
+          echo "❌ Artifacts directory not found"
+        fi
 
     - name: Create release archives
       run: |
