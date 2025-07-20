@@ -52,6 +52,7 @@ jobs:
         pip install PyInstaller || echo "PyInstaller failed"
 
     - name: Create resources directory
+      shell: bash
       run: |
         mkdir -p resources
 
@@ -68,7 +69,23 @@ jobs:
         python scripts/ci_build.py
       continue-on-error: true
 
-    - name: Check build output
+    - name: Check build output (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        Write-Host "Checking build output..."
+        if (Test-Path "dist") {
+          Write-Host "✅ dist directory exists"
+          Get-ChildItem -Path "dist" -Recurse | Format-Table Name, Length, LastWriteTime
+          $fileCount = (Get-ChildItem -Path "dist" -Recurse -File).Count
+          Write-Host "Total files in dist: $fileCount"
+        } else {
+          Write-Host "❌ dist directory not found"
+        }
+
+    - name: Check build output (Unix)
+      if: runner.os != 'Windows'
+      shell: bash
       run: |
         echo "Checking build output..."
         if [ -d "dist" ]; then

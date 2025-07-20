@@ -154,9 +154,53 @@ git tag -a v1.0.1 -m "Release v1.0.1"
 git push origin v1.0.1
 ```
 
+## 🔄 Windows包缺失问题修复 (v1.0.3)
+
+### 问题描述
+在v1.0.2的Release中，只有macOS包被创建，Windows包缺失。
+
+### 根本原因分析
+1. **Windows构建可能失败** - 但没有明确的错误信息
+2. **Artifacts下载问题** - 可能只下载了部分artifacts
+3. **文件路径匹配问题** - Windows构建产物路径不匹配
+
+### 最新修复措施
+
+#### 1. 改进Artifacts处理
+- ✅ 添加`merge-multiple: true`选项合并所有artifacts
+- ✅ 改进文件查找逻辑，支持多种目录结构
+- ✅ 添加详细的构建输出检查
+
+#### 2. 增强错误处理
+- ✅ 添加`if-no-files-found: warn`避免上传失败中断流程
+- ✅ 支持部分平台构建失败的情况
+- ✅ 动态生成Release描述，标明实际可用平台
+
+#### 3. 新增调试工具
+- ✅ 创建`scripts/debug_windows_build.py`专门诊断Windows构建
+- ✅ 包含环境检查、依赖验证、简单构建测试
+
+#### 4. Release创建改进
+- ✅ 智能检测可用的构建包
+- ✅ 提供源码运行的备选方案
+- ✅ 更详细的安装说明
+
+### 测试验证
+已创建v1.0.3标签进行测试验证：
+```bash
+git tag -a v1.0.3 -m "Release v1.0.3 - 修复Windows包缺失问题"
+git push origin v1.0.3
+```
+
+### 预期效果
+- ✅ Windows和macOS包都能正确创建
+- ✅ 即使某个平台构建失败，其他平台仍能正常发布
+- ✅ 提供更好的错误诊断和用户指导
+
 ---
 
 **修复时间**: 2025-07-19
 **影响范围**: GitHub Actions工作流
 **风险等级**: 低 (向后兼容更新)
-**新增功能**: 手动Release创建
+**新增功能**: 手动Release创建、Windows构建调试工具
+**最新版本**: v1.0.3

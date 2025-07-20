@@ -42,6 +42,7 @@ jobs:
         pip install PyInstaller || echo "PyInstaller failed"
         
     - name: Create resources directory
+      shell: bash
       run: |
         mkdir -p resources
         
