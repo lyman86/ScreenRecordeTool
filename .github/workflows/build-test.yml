@@ -1,0 +1,190 @@
+name: Build Test
+
+on:
+  workflow_dispatch:  # 手动触发
+    inputs:
+      build_windows:
+        description: 'Build Windows version'
+        type: boolean
+        default: true
+      build_macos:
+        description: 'Build macOS version'
+        type: boolean
+        default: true
+      upload_artifacts:
+        description: 'Upload build artifacts'
+        type: boolean
+        default: true
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'src/**'
+      - 'build_scripts/**'
+      - 'requirements.txt'
+      - 'main.py'
+
+jobs:
+  build-windows:
+    if: ${{ github.event_name == 'pull_request' || github.event.inputs.build_windows == 'true' }}
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~\AppData\Local\pip\Cache
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Create resources directory
+      run: |
+        mkdir -p resources
+        echo "" > resources/icon.ico
+    
+    - name: Test Python imports
+      run: |
+        python -c "import PyQt6; print('PyQt6 OK')"
+        python -c "import cv2; print('OpenCV OK')"
+        python -c "import numpy; print('NumPy OK')"
+        python -c "import mss; print('MSS OK')"
+    
+    - name: Build Windows executable
+      run: |
+        python build_scripts/build_windows.py
+    
+    - name: Test executable
+      run: |
+        if (Test-Path "dist/ScreenRecorder.exe") {
+          Write-Host "✅ Windows executable built successfully"
+          $size = (Get-Item "dist/ScreenRecorder.exe").Length
+          Write-Host "📦 File size: $([math]::Round($size/1MB, 2)) MB"
+        } else {
+          Write-Host "❌ Windows executable not found"
+          exit 1
+        }
+    
+    - name: Upload Windows artifacts
+      if: ${{ github.event.inputs.upload_artifacts == 'true' || github.event_name == 'pull_request' }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: windows-test-build
+        path: |
+          dist/ScreenRecorder.exe
+          build/
+        retention-days: 7
+
+  build-macos:
+    if: ${{ github.event_name == 'pull_request' || github.event.inputs.build_macos == 'true' }}
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/Library/Caches/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Install system dependencies
+      run: |
+        brew install portaudio
+    
+    - name: Create resources directory
+      run: |
+        mkdir -p resources
+        touch resources/icon.icns
+    
+    - name: Test Python imports
+      run: |
+        python -c "import PyQt6; print('PyQt6 OK')"
+        python -c "import cv2; print('OpenCV OK')"
+        python -c "import numpy; print('NumPy OK')"
+        python -c "import mss; print('MSS OK')"
+    
+    - name: Build macOS app
+      run: |
+        python build_scripts/build_macos.py
+    
+    - name: Test app bundle
+      run: |
+        if [ -d "dist/ScreenRecorder.app" ]; then
+          echo "✅ macOS app bundle built successfully"
+          du -sh dist/ScreenRecorder.app
+          echo "📦 App bundle size: $(du -sh dist/ScreenRecorder.app | cut -f1)"
+        else
+          echo "❌ macOS app bundle not found"
+          exit 1
+        fi
+    
+    - name: Upload macOS artifacts
+      if: ${{ github.event.inputs.upload_artifacts == 'true' || github.event_name == 'pull_request' }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: macos-test-build
+        path: |
+          dist/ScreenRecorder.app
+          build/
+        retention-days: 7
+
+  build-summary:
+    needs: [build-windows, build-macos]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Build Summary
+      run: |
+        echo "## 🔨 构建测试结果" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ needs.build-windows.result }}" = "success" ]; then
+          echo "✅ **Windows构建**: 成功" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ needs.build-windows.result }}" = "skipped" ]; then
+          echo "⏭️ **Windows构建**: 跳过" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Windows构建**: 失败" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ needs.build-macos.result }}" = "success" ]; then
+          echo "✅ **macOS构建**: 成功" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ needs.build-macos.result }}" = "skipped" ]; then
+          echo "⏭️ **macOS构建**: 跳过" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **macOS构建**: 失败" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📝 说明" >> $GITHUB_STEP_SUMMARY
+        echo "- 这是构建测试，不会创建发布" >> $GITHUB_STEP_SUMMARY
+        echo "- 要创建正式发布，请推送版本标签 (如: git tag v1.0.0 && git push origin v1.0.0)" >> $GITHUB_STEP_SUMMARY
+        echo "- 构建产物保留7天，可在Actions页面下载" >> $GITHUB_STEP_SUMMARY
