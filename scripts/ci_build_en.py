@@ -50,9 +50,9 @@ def install_dependencies():
         for dep in minimal_deps:
             try:
                 subprocess.run([sys.executable, "-m", "pip", "install", dep], check=True)
-                print(f"✓ {dep} installed successfully")
+                print(f"[OK] {dep} installed successfully")
             except subprocess.CalledProcessError:
-                print(f"⚠ {dep} installation failed, skipping")
+                print(f"[WARN] {dep} installation failed, skipping")
         
         print("Dependencies installation completed")
         return True
@@ -190,14 +190,14 @@ def build_executable():
         
         if result.returncode == 0:
             print("Build successful!")
-            
+
             # Check output files
             dist_dir = Path("dist")
             if dist_dir.exists():
                 print("Build output:")
                 for item in dist_dir.iterdir():
                     print(f"  {item}")
-            
+
             return True
         else:
             print("Build failed!")
@@ -240,10 +240,10 @@ def main():
         
         # 4. Build executable
         if build_executable():
-            print("\n🎉 Build successful!")
+            print("\n[SUCCESS] Build successful!")
             return 0
         else:
-            print("\n❌ Build failed!")
+            print("\n[ERROR] Build failed!")
             return 1
     
     except KeyboardInterrupt:

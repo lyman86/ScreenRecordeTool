@@ -20,10 +20,10 @@ def test_python_version():
     print(f"Python version: {version.major}.{version.minor}.{version.micro}")
     
     if version < (3, 8):
-        print("❌ Python version too low, requires 3.8 or higher")
+        print("[ERROR] Python version too low, requires 3.8 or higher")
         return False
     else:
-        print("✅ Python version meets requirements")
+        print("[OK] Python version meets requirements")
         return True
 
 def test_system_compatibility():
@@ -38,10 +38,10 @@ def test_system_compatibility():
     print(f"Architecture: {platform.machine()}")
     
     if system in ["Windows", "Darwin"]:
-        print("✅ Operating system supported")
+        print("[OK] Operating system supported")
         return True
     else:
-        print("❌ Operating system not supported, only Windows and macOS are supported")
+        print("[ERROR] Operating system not supported, only Windows and macOS are supported")
         return False
 
 def test_required_modules():
@@ -67,10 +67,10 @@ def test_required_modules():
         try:
             mod = importlib.import_module(module)
             version = getattr(mod, '__version__', 'Unknown')
-            print(f"✅ {name}: {version}")
+            print(f"[OK] {name}: {version}")
             success_count += 1
         except ImportError as e:
-            print(f"❌ {name}: Not installed ({e})")
+            print(f"[ERROR] {name}: Not installed ({e})")
     
     print(f"\nModule test result: {success_count}/{total_count} successful")
     return success_count == total_count
@@ -99,10 +99,10 @@ def test_project_structure():
     for file_path in required_files:
         full_path = project_root / file_path
         if full_path.exists():
-            print(f"✅ {file_path}")
+            print(f"[OK] {file_path}")
             success_count += 1
         else:
-            print(f"❌ {file_path}: File not found")
+            print(f"[ERROR] {file_path}: File not found")
     
     print(f"\nFile structure test result: {success_count}/{total_count} successful")
     return success_count == total_count
@@ -118,12 +118,12 @@ def test_config_loading():
         sys.path.insert(0, str(Path(__file__).parent / "src"))
         
         from config.settings import AppConfig
-        print(f"✅ App Name: {AppConfig.APP_NAME}")
-        print(f"✅ App Version: {AppConfig.APP_VERSION}")
-        print(f"✅ App Author: {AppConfig.APP_AUTHOR}")
+        print(f"[OK] App Name: {AppConfig.APP_NAME}")
+        print(f"[OK] App Version: {AppConfig.APP_VERSION}")
+        print(f"[OK] App Author: {AppConfig.APP_AUTHOR}")
         return True
     except Exception as e:
-        print(f"❌ Configuration loading failed: {e}")
+        print(f"[ERROR] Configuration loading failed: {e}")
         return False
 
 def test_gui_availability():
@@ -139,18 +139,18 @@ def test_gui_availability():
         # May not have display in CI environment
         import os
         if os.environ.get('CI') or os.environ.get('GITHUB_ACTIONS'):
-            print("⚠️  CI environment detected, skipping GUI test")
+            print("[WARN] CI environment detected, skipping GUI test")
             return True
-        
+
         # Try to create application instance
         app = QApplication.instance()
         if app is None:
             app = QApplication([])
-        
-        print("✅ PyQt6 GUI framework available")
+
+        print("[OK] PyQt6 GUI framework available")
         return True
     except Exception as e:
-        print(f"❌ GUI framework not available: {e}")
+        print(f"[ERROR] GUI framework not available: {e}")
         return False
 
 def main():
@@ -175,19 +175,19 @@ def main():
             if test_func():
                 passed_tests += 1
         except Exception as e:
-            print(f"❌ {test_name} test exception: {e}")
-    
+            print(f"[ERROR] {test_name} test exception: {e}")
+
     # Summary
     print("\n" + "=" * 50)
     print("Test Summary")
     print("=" * 50)
     print(f"Passed tests: {passed_tests}/{total_tests}")
-    
+
     if passed_tests == total_tests:
-        print("🎉 All tests passed! Application should run normally.")
+        print("[SUCCESS] All tests passed! Application should run normally.")
         return 0
     else:
-        print("⚠️  Some tests failed, please check the error messages above.")
+        print("[WARN] Some tests failed, please check the error messages above.")
         return 1
 
 if __name__ == "__main__":
