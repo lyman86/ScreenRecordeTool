@@ -15,22 +15,22 @@ DIST_DIR = PROJECT_ROOT / "dist"
 SPEC_FILE = PROJECT_ROOT / "main.spec"
 
 def clean_build():
-    """清理构建目录"""
-    print("清理构建目录...")
+    """Clean build directory"""
+    print("Cleaning build directory...")
     
     dirs_to_clean = [BUILD_DIR, DIST_DIR]
     for dir_path in dirs_to_clean:
         if dir_path.exists():
             shutil.rmtree(dir_path)
-            print(f"已删除: {dir_path}")
+            print(f"Deleted: {dir_path}")
     
     if SPEC_FILE.exists():
         SPEC_FILE.unlink()
-        print(f"已删除: {SPEC_FILE}")
+        print(f"Deleted: {SPEC_FILE}")
 
 def create_spec_file():
-    """创建PyInstaller spec文件"""
-    print("创建spec文件...")
+    """Create PyInstaller spec file"""
+    print("Creating spec file...")
     
     spec_content = '''# -*- mode: python ; coding: utf-8 -*-
 
@@ -98,11 +98,11 @@ exe = EXE(
     with open(SPEC_FILE, 'w', encoding='utf-8') as f:
         f.write(spec_content)
     
-    print(f"已创建: {SPEC_FILE}")
+    print(f"Created: {SPEC_FILE}")
 
 def create_version_info():
-    """创建版本信息文件"""
-    print("创建版本信息文件...")
+    """Create version info file"""
+    print("Creating version info file...")
     
     version_info = '''# UTF-8
 #
@@ -142,11 +142,11 @@ VSVersionInfo(
     with open(version_file, 'w', encoding='utf-8') as f:
         f.write(version_info)
     
-    print(f"已创建: {version_file}")
+    print(f"Created: {version_file}")
 
 def create_icon():
-    """创建应用图标"""
-    print("检查应用图标...")
+    """Create application icon"""
+    print("Checking application icon...")
     
     icon_dir = PROJECT_ROOT / "resources"
     icon_dir.mkdir(exist_ok=True)
@@ -159,31 +159,31 @@ def create_icon():
         print(f"找到图标文件: {icon_file}")
 
 def install_dependencies():
-    """安装依赖"""
-    print("检查并安装依赖...")
+    """Install dependencies"""
+    print("Checking and installing dependencies...")
     
     try:
-        # 检查PyInstaller
+        # Check PyInstaller
         import PyInstaller
-        print(f"PyInstaller版本: {PyInstaller.__version__}")
+        print(f"PyInstaller version: {PyInstaller.__version__}")
     except ImportError:
-        print("安装PyInstaller...")
+        print("Installing PyInstaller...")
         subprocess.run([sys.executable, "-m", "pip", "install", "pyinstaller"])
     
-    # 安装其他依赖
+    # Install other dependencies
     requirements_file = PROJECT_ROOT / "requirements.txt"
     if requirements_file.exists():
-        print("安装项目依赖...")
+        print("Installing project dependencies...")
         subprocess.run([sys.executable, "-m", "pip", "install", "-r", str(requirements_file)])
 
 def build_executable():
-    """构建可执行文件"""
-    print("开始构建可执行文件...")
+    """Build executable"""
+    print("Starting to build executable...")
     
-    # 切换到项目根目录
+    # Change to project root directory
     os.chdir(PROJECT_ROOT)
     
-    # 运行PyInstaller
+    # Run PyInstaller
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--clean",
@@ -191,22 +191,24 @@ def build_executable():
         str(SPEC_FILE)
     ]
     
-    print(f"执行命令: {' '.join(cmd)}")
+    print(f"Executing command: {' '.join(cmd)}")
     result = subprocess.run(cmd, capture_output=True, text=True)
     
     if result.returncode == 0:
-        print("构建成功!")
-        print(f"可执行文件位置: {DIST_DIR / 'ScreenRecorder.exe'}")
+        print("Build successful!")
+        print(f"Executable location: {DIST_DIR / 'ScreenRecorder.exe'}")
     else:
-        print("构建失败!")
-        print("错误输出:")
+        print("Build failed!")
+        print("Error output:")
         print(result.stderr)
         return False
     
     return True
 
+
+
 def create_installer():
-    """创建安装程序（使用NSIS）"""
+    """Create installer (using NSIS)"""
     print("Creating installer...")
     
     nsis_script = PROJECT_ROOT / "installer.nsi"
@@ -218,10 +220,10 @@ def create_installer():
 !define APP_PUBLISHER "Your Company"
 !define APP_EXE "ScreenRecorder.exe"
 
-; 包含现代UI
+; Include modern UI
 !include "MUI2.nsh"
 
-; 基本设置
+; Basic settings
 Name "${APP_NAME}"
 OutFile "ScreenRecorder_Setup.exe"
 InstallDir "$PROGRAMFILES\\${APP_NAME}"
@@ -288,41 +290,41 @@ SectionEnd
     print("Please use NSIS compiler to compile installer.nsi file to create installer")
 
 def main():
-    """主函数"""
+    """Main function"""
     print("=" * 50)
     print("Windows Build Script")
     print("=" * 50)
     
     try:
-        # 1. 清理构建目录
+        # 1. Clean build directory
         clean_build()
         
-        # 2. 安装依赖
+        # 2. Install dependencies
         install_dependencies()
         
-        # 3. 创建必要文件
+        # 3. Create necessary files
         create_version_info()
         create_icon()
         create_spec_file()
         
-        # 4. 构建可执行文件
+        # 4. Build executable
         if build_executable():
-            print("\n构建完成!")
-            print(f"可执行文件: {DIST_DIR / 'ScreenRecorder.exe'}")
+            print("\nBuild completed!")
+            print(f"Executable: {DIST_DIR / 'ScreenRecorder.exe'}")
             
-            # 5. 创建安装程序脚本
+            # 5. Create installer script
             create_installer()
             
-            print("\n后续步骤:")
-            print("1. 测试可执行文件")
-            print("2. 使用NSIS编译安装程序")
-            print("3. 测试安装程序")
+            print("\nNext steps:")
+            print("1. Test the executable")
+            print("2. Use NSIS to compile installer")
+            print("3. Test the installer")
         else:
-            print("\n构建失败!")
+            print("\nBuild failed!")
             return 1
     
     except Exception as e:
-        print(f"构建过程中发生错误: {e}")
+        print(f"Error occurred during build: {e}")
         return 1
     
     return 0
