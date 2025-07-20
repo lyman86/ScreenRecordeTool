@@ -1,3 +1,4 @@
+# macOS音频修复
 """
 音频捕获模块
 """
@@ -25,11 +26,20 @@ class AudioCapture(QObject):
         self.is_recording = False
         self.record_thread = None
         
-        # 音频参数
-        self.sample_rate = 44100
-        self.channels = 2
-        self.chunk_size = 1024
-        self.format = pyaudio.paInt16
+        # macOS音频修复 - 优化音频参数
+        import platform
+        if platform.system() == "Darwin":
+            # macOS优化设置
+            self.sample_rate = 44100
+            self.channels = 1  # macOS上使用单声道更稳定
+            self.chunk_size = 2048  # 增大缓冲区
+            self.format = pyaudio.paInt16
+        else:
+            # 其他系统的设置
+            self.sample_rate = 44100
+            self.channels = 2
+            self.chunk_size = 1024
+            self.format = pyaudio.paInt16
         
         # 音频数据缓冲
         self.audio_buffer = []
@@ -37,6 +47,8 @@ class AudioCapture(QObject):
 
         # 音量监控
         self.volume_level = 0.0
+        
+        print(f"音频参数: {self.sample_rate}Hz, {self.channels}声道, 缓冲区{self.chunk_size}")
 
     def __del__(self):
         """析构函数，确保资源清理"""

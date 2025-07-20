@@ -12,6 +12,15 @@ from typing import Optional, Tuple
 from pathlib import Path
 from PyQt6.QtCore import QObject, pyqtSignal
 
+# 尝试导入ffmpeg-python
+try:
+    import ffmpeg
+    FFMPEG_PYTHON_AVAILABLE = True
+    print("✅ 使用ffmpeg-python库进行视频处理")
+except ImportError:
+    FFMPEG_PYTHON_AVAILABLE = False
+    print("⚠️ ffmpeg-python未安装，将尝试使用系统FFmpeg命令")
+
 class VideoEncoder(QObject):
     """视频编码器类"""
     
@@ -356,7 +365,39 @@ class ScreenRecorder(QObject):
                 self._cleanup_temp_files()
                 return
 
-            # 使用FFmpeg合并音频和视频
+            # 优先使用ffmpeg-python库
+            if FFMPEG_PYTHON_AVAILABLE:
+                try:
+                    print("使用ffmpeg-python库合并音频视频...")
+
+                    # macOS特殊处理：设置FFmpeg路径
+                    import platform
+                    if platform.system() == "Darwin":
+                        self._setup_ffmpeg_path_macos()
+
+                    # 使用ffmpeg-python合并
+                    video_input = ffmpeg.input(self.video_temp_path)
+                    audio_input = ffmpeg.input(self.audio_temp_path)
+
+                    output = ffmpeg.output(
+                        video_input, audio_input,
+                        self.final_output_path,
+                        vcodec='copy',  # 复制视频流
+                        acodec='aac',   # 音频编码为AAC
+                        strict='experimental'
+                    )
+
+                    # 执行合并，覆盖输出文件
+                    ffmpeg.run(output, overwrite_output=True, quiet=True)
+                    print("✅ 音频视频合并成功")
+                    self._cleanup_temp_files()
+                    return
+
+                except Exception as e:
+                    print(f"ffmpeg-python合并失败: {e}")
+                    # 继续尝试系统FFmpeg命令
+
+            # 使用系统FFmpeg命令作为备选方案
             cmd = [
                 'ffmpeg', '-y',  # -y 覆盖输出文件
                 '-i', self.video_temp_path,  # 输入视频
@@ -367,16 +408,16 @@ class ScreenRecorder(QObject):
                 self.final_output_path
             ]
 
-            print(f"执行FFmpeg命令: {' '.join(cmd)}")
+            print(f"执行系统FFmpeg命令: {' '.join(cmd)}")
 
             # 执行FFmpeg命令
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
 
             if result.returncode == 0:
-                print("音频视频合并成功")
+                print("✅ 音频视频合并成功")
                 self._cleanup_temp_files()
             else:
-                print(f"FFmpeg错误: {result.stderr}")
+                print(f"❌ FFmpeg错误: {result.stderr}")
                 # 如果合并失败，至少保存视频文件
                 import shutil
                 shutil.copy2(self.video_temp_path, self.final_output_path)
@@ -393,6 +434,39 @@ class ScreenRecorder(QObject):
             self.error_occurred.emit("FFmpeg未安装，已保存纯视频文件")
         except Exception as e:
             self.error_occurred.emit(f"合并音频视频失败: {str(e)}")
+
+    def _setup_ffmpeg_path_macos(self):
+        """设置macOS的FFmpeg路径"""
+        try:
+            import os
+            import shutil
+
+            # 检查当前PATH中是否有ffmpeg
+            if shutil.which('ffmpeg'):
+                return
+
+            # 检查常见的macOS FFmpeg安装位置
+            possible_paths = [
+                '/usr/local/bin',
+                '/opt/homebrew/bin',
+                str(Path.home() / '.local' / 'bin'),
+                '/usr/bin'
+            ]
+
+            for bin_path in possible_paths:
+                ffmpeg_path = Path(bin_path) / 'ffmpeg'
+                if ffmpeg_path.exists():
+                    # 添加到PATH环境变量
+                    current_path = os.environ.get('PATH', '')
+                    if bin_path not in current_path:
+                        os.environ['PATH'] = f"{bin_path}:{current_path}"
+                        print(f"✅ 已添加FFmpeg路径到PATH: {bin_path}")
+                    return
+
+            print("⚠️ 未找到FFmpeg，可能需要安装")
+
+        except Exception as e:
+            print(f"设置FFmpeg路径失败: {e}")
 
     def _cleanup_temp_files(self):
         """清理临时文件"""

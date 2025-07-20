@@ -21,6 +21,7 @@ from core.screen_capture import ScreenCapture
 from core.audio_capture import AudioCapture
 from core.video_encoder import VideoEncoder, ScreenRecorder
 from config.settings import AppConfig, UIConfig
+from utils.ffmpeg_manager import FFmpegManager
 
 class ModernButton(QPushButton):
     """现代化按钮样式"""
@@ -160,7 +161,11 @@ class MainWindow(QMainWindow):
         self.is_recording = False
         self.is_paused = False
         self.output_path = AppConfig.get_default_output_dir()
-        
+
+        # FFmpeg管理器
+        self.ffmpeg_manager = FFmpegManager()
+        self.ffmpeg_manager.status_changed.connect(self.on_ffmpeg_status_changed)
+
         # 定时器
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_ui)
@@ -301,12 +306,18 @@ class MainWindow(QMainWindow):
 
         self.select_region_btn = ModernButton("选择区域")
         self.select_region_btn.setMaximumWidth(80)
+        self.select_region_btn.setFixedHeight(self.region_combo.sizeHint().height())
         self.select_region_btn.setEnabled(False)
         region_layout.addWidget(self.select_region_btn)
 
         region_widget = QWidget()
         region_widget.setLayout(region_layout)
         layout.addWidget(region_widget, 5, 1)
+
+        # 区域信息显示
+        self.region_info_label = QLabel("当前: 全屏录制")
+        self.region_info_label.setStyleSheet("color: #666; font-size: 11px; padding: 2px;")
+        layout.addWidget(self.region_info_label, 6, 0, 1, 2)
 
         return group
 
@@ -325,6 +336,7 @@ class MainWindow(QMainWindow):
 
         self.browse_btn = ModernButton("浏览")
         self.browse_btn.setMaximumWidth(80)
+        self.browse_btn.setFixedHeight(self.output_path_edit.sizeHint().height())
         path_layout.addWidget(self.browse_btn)
 
         layout.addLayout(path_layout)
@@ -389,6 +401,13 @@ class MainWindow(QMainWindow):
         self.status_label = QLabel("就绪")
         status_bar.addWidget(self.status_label)
 
+        # FFmpeg状态指示器
+        self.ffmpeg_status_btn = ModernButton("检查FFmpeg")
+        self.ffmpeg_status_btn.setMaximumWidth(120)
+        self.ffmpeg_status_btn.setFixedHeight(20)  # 设置固定高度为20像素
+        self.ffmpeg_status_btn.clicked.connect(self.on_ffmpeg_button_clicked)
+        status_bar.addPermanentWidget(self.ffmpeg_status_btn)
+
         # 音频电平指示器
         status_bar.addPermanentWidget(QLabel("音频:"))
         self.audio_level_bar = QProgressBar()
@@ -399,43 +418,70 @@ class MainWindow(QMainWindow):
 
     def apply_styles(self):
         """应用样式"""
+        # 检测系统主题
+        palette = self.palette()
+        is_dark_theme = palette.color(QPalette.ColorRole.Window).lightness() < 128
+
+        if is_dark_theme:
+            # 暗色主题样式
+            bg_color = "#2b2b2b"
+            text_color = "#ffffff"
+            border_color = "#555555"
+            input_bg = "#3c3c3c"
+            group_bg = "#2b2b2b"
+        else:
+            # 亮色主题样式
+            bg_color = UIConfig.COLORS["light"]
+            text_color = UIConfig.COLORS["dark"]
+            border_color = "#CCCCCC"
+            input_bg = "white"
+            group_bg = UIConfig.COLORS["light"]
+
         self.setStyleSheet(f"""
             QMainWindow {{
-                background-color: {UIConfig.COLORS["light"]};
+                background-color: {bg_color};
+                color: {text_color};
+            }}
+            QLabel {{
+                color: {text_color};
             }}
             QGroupBox {{
                 font-weight: bold;
-                border: 2px solid #CCCCCC;
+                border: 2px solid {border_color};
                 border-radius: 8px;
                 margin-top: 8px;
                 padding-top: 8px;
+                color: {text_color};
             }}
             QGroupBox::title {{
                 subcontrol-origin: margin;
                 left: 10px;
                 padding: 0 5px 0 5px;
-                background-color: {UIConfig.COLORS["light"]};
+                background-color: {group_bg};
+                color: {text_color};
             }}
             QComboBox, QLineEdit, QSpinBox {{
-                border: 1px solid #CCCCCC;
+                border: 1px solid {border_color};
                 border-radius: 4px;
                 padding: 4px;
-                background-color: white;
+                background-color: {input_bg};
+                color: {text_color};
             }}
             QComboBox:focus, QLineEdit:focus, QSpinBox:focus {{
                 border-color: {UIConfig.COLORS["primary"]};
             }}
             QCheckBox {{
                 spacing: 8px;
+                color: {text_color};
             }}
             QCheckBox::indicator {{
                 width: 16px;
                 height: 16px;
             }}
             QCheckBox::indicator:unchecked {{
-                border: 2px solid #CCCCCC;
+                border: 2px solid {border_color};
                 border-radius: 3px;
-                background-color: white;
+                background-color: {input_bg};
             }}
             QCheckBox::indicator:checked {{
                 border: 2px solid {UIConfig.COLORS["primary"]};
@@ -682,40 +728,57 @@ class MainWindow(QMainWindow):
             self.select_region_btn.setEnabled(False)
             # 重置为全屏
             self.screen_capture.set_capture_region(None, None, None, None)
+            self.region_info_label.setText("当前: 全屏录制")
 
     def select_recording_region(self):
         """选择录制区域"""
         try:
-            from ui.region_selector import ScreenAreaSelector
+            from ui.simple_region_selector import RegionSelectorManager
 
-            self.region_selector = ScreenAreaSelector()
-            self.region_selector.select_region(self.on_region_selected)
+            # 创建区域选择器管理器
+            self.region_manager = RegionSelectorManager()
+
+            # 开始区域选择
+            success = self.region_manager.select_region(self.on_region_selected)
+
+            if not success:
+                QMessageBox.warning(self, "启动失败", "无法启动区域选择器")
 
         except ImportError:
-            QMessageBox.warning(self, "功能暂不可用", "区域选择功能正在开发中")
+            QMessageBox.warning(self, "功能暂不可用", "区域选择器不可用")
         except Exception as e:
             QMessageBox.critical(self, "错误", f"启动区域选择失败: {str(e)}")
 
     def on_region_selected(self, *args):
         """区域选择完成"""
+        if len(args) == 1 and args[0] is None:
+            # 用户取消选择，回到全屏模式
+            self.region_combo.setCurrentText("全屏")
+            return
+
         if len(args) == 4:
             # 直接传递的4个参数
             x, y, width, height = args
-            self.screen_capture.set_capture_region(x, y, width, height)
-            QMessageBox.information(self, "区域选择", f"已选择区域: {width}x{height} at ({x}, {y})")
-        elif len(args) == 1 and args[0] is not None:
+        elif len(args) == 1 and isinstance(args[0], (tuple, list)) and len(args[0]) == 4:
             # 传递的是元组
-            region = args[0]
-            if isinstance(region, (tuple, list)) and len(region) == 4:
-                x, y, width, height = region
-                self.screen_capture.set_capture_region(x, y, width, height)
-                QMessageBox.information(self, "区域选择", f"已选择区域: {width}x{height} at ({x}, {y})")
-            else:
-                # 用户取消选择，回到全屏模式
-                self.region_combo.setCurrentText("全屏")
+            x, y, width, height = args[0]
         else:
-            # 用户取消选择，回到全屏模式
+            # 无效的参数，回到全屏模式
             self.region_combo.setCurrentText("全屏")
+            return
+
+        # 设置捕获区域
+        self.screen_capture.set_capture_region(x, y, width, height)
+
+        # 更新信息显示
+        self.region_info_label.setText(f"当前: 选择区域 {width}×{height} at ({x},{y})")
+
+        # 显示确认信息
+        QMessageBox.information(
+            self,
+            "区域选择完成",
+            f"已选择录制区域:\n\n位置: ({x}, {y})\n尺寸: {width} × {height} 像素"
+        )
 
     # 信号处理方法
     def on_recording_started(self):
@@ -780,6 +843,127 @@ class MainWindow(QMainWindow):
             # 这里需要将numpy数组转换为QPixmap
             # 由于篇幅限制，简化实现
             pass
+
+    def on_ffmpeg_button_clicked(self):
+        """FFmpeg按钮点击处理"""
+        if self.ffmpeg_manager.is_available():
+            # 如果已安装，显示版本信息
+            version = self.ffmpeg_manager.get_version()
+            path = self.ffmpeg_manager.get_path()
+            QMessageBox.information(
+                self,
+                "FFmpeg信息",
+                f"FFmpeg已安装\n\n版本: {version}\n路径: {path}"
+            )
+        else:
+            # 如果未安装，显示安装对话框
+            self.show_ffmpeg_install_dialog()
+
+    def show_ffmpeg_install_dialog(self):
+        """显示FFmpeg安装对话框"""
+        try:
+            from ui.ffmpeg_install_dialog import FFmpegInstallDialog
+
+            dialog = FFmpegInstallDialog(self)
+            dialog.install_requested.connect(self.install_ffmpeg)
+
+            # 连接安装进度信号
+            if hasattr(self.ffmpeg_manager, 'installer'):
+                installer = self.ffmpeg_manager.installer
+                if installer:
+                    installer.installation_progress.connect(dialog.update_progress)
+                    installer.installation_finished.connect(dialog.installation_finished)
+
+            dialog.exec()
+
+        except ImportError as e:
+            # 如果对话框不可用，使用简单的确认对话框
+            reply = QMessageBox.question(
+                self,
+                "安装FFmpeg",
+                "FFmpeg未安装或不可用。\n\nFFmpeg用于合并音频和视频文件，提供更好的录制体验。\n\n是否现在安装？",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes
+            )
+
+            if reply == QMessageBox.StandardButton.Yes:
+                self.install_ffmpeg()
+
+    def install_ffmpeg(self):
+        """安装FFmpeg"""
+        # 禁用按钮
+        self.ffmpeg_status_btn.setEnabled(False)
+        self.ffmpeg_status_btn.setText("安装中...")
+
+        # 开始安装
+        if self.ffmpeg_manager.install_ffmpeg():
+            # 连接安装进度信号
+            if hasattr(self.ffmpeg_manager, 'installer') and self.ffmpeg_manager.installer:
+                self.ffmpeg_manager.installer.installation_progress.connect(self.on_ffmpeg_install_progress)
+                self.ffmpeg_manager.installer.installation_finished.connect(self.on_ffmpeg_install_finished)
+        else:
+            # 安装失败
+            self.ffmpeg_status_btn.setEnabled(True)
+            self.ffmpeg_status_btn.setText("FFmpeg未安装")
+            QMessageBox.warning(self, "安装失败", "无法启动FFmpeg安装程序")
+
+    def on_ffmpeg_install_progress(self, message):
+        """FFmpeg安装进度"""
+        self.status_label.setText(f"FFmpeg安装: {message}")
+
+    def on_ffmpeg_install_finished(self, success, message):
+        """FFmpeg安装完成"""
+        self.ffmpeg_status_btn.setEnabled(True)
+
+        if success:
+            QMessageBox.information(self, "安装成功", f"FFmpeg安装成功！\n\n{message}")
+            self.status_label.setText("FFmpeg安装成功")
+        else:
+            QMessageBox.warning(self, "安装失败", f"FFmpeg安装失败：\n\n{message}")
+            self.status_label.setText("FFmpeg安装失败")
+
+    def on_ffmpeg_status_changed(self, available, info):
+        """FFmpeg状态改变"""
+        if available:
+            self.ffmpeg_status_btn.setText("✅ FFmpeg已安装")
+            self.ffmpeg_status_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #4CAF50;
+                    color: white;
+                    border: none;
+                    border-radius: 3px;
+                    padding: 2px 6px;
+                    font-size: 11px;
+                    font-weight: normal;
+                }
+                QPushButton:hover {
+                    background-color: #45a049;
+                }
+            """)
+            self.ffmpeg_status_btn.setToolTip(f"FFmpeg已安装\n{info}")
+        else:
+            self.ffmpeg_status_btn.setText("❌ FFmpeg未安装")
+            self.ffmpeg_status_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #f44336;
+                    color: white;
+                    border: none;
+                    border-radius: 3px;
+                    padding: 2px 6px;
+                    font-size: 11px;
+                    font-weight: normal;
+                }
+                QPushButton:hover {
+                    background-color: #da190b;
+                }
+            """)
+            self.ffmpeg_status_btn.setToolTip("点击安装FFmpeg")
+
+    def showEvent(self, event):
+        """窗口显示事件"""
+        super().showEvent(event)
+        # 检查FFmpeg状态
+        self.ffmpeg_manager.check_ffmpeg_status()
 
     def on_error_occurred(self, error_message):
         """错误处理"""
