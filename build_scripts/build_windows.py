@@ -28,7 +28,7 @@ def clean_build():
         SPEC_FILE.unlink()
         print(f"Deleted: {SPEC_FILE}")
 
-def create_spec_file():
+def create_spec_file(has_icon=False):
     """Create PyInstaller spec file"""
     print("Creating spec file...")
     
@@ -90,7 +90,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='resources/icon.ico',
+    icon='resources/icon.ico' if has_icon else None,
     version='version_info.txt'
 )
 '''
@@ -153,10 +153,12 @@ def create_icon():
     
     icon_file = icon_dir / "icon.ico"
     if not icon_file.exists():
-        print("Warning: icon.ico file not found, using default icon")
-        # Here you can create a simple default icon or download from network
+        print("Warning: icon.ico file not found, skipping icon setup")
+        print("The executable will use the default PyInstaller icon")
+        return False
     else:
         print(f"Found icon file: {icon_file}")
+        return True
 
 def install_dependencies():
     """Install dependencies"""
@@ -304,8 +306,8 @@ def main():
         
         # 3. Create necessary files
         create_version_info()
-        create_icon()
-        create_spec_file()
+        has_icon = create_icon()
+        create_spec_file(has_icon)
         
         # 4. Build executable
         if build_executable():
