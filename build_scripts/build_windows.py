@@ -59,7 +59,17 @@ a = Analysis(
         'pynput',
         'pillow',
         'imageio',
-        'psutil'
+        'psutil',
+        'wave',
+        'threading',
+        'queue',
+        'time',
+        'os',
+        'sys',
+        'json',
+        'pathlib',
+        'subprocess',
+        'platform'
     ],
     hookspath=[],
     hooksconfig=[],

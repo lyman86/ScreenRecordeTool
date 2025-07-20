@@ -60,7 +60,17 @@ a = Analysis(
         'pynput',
         'pillow',
         'imageio',
-        'psutil'
+        'psutil',
+        'wave',
+        'threading',
+        'queue',
+        'time',
+        'os',
+        'sys',
+        'json',
+        'pathlib',
+        'subprocess',
+        'platform'
     ],
     hookspath=[],
     hooksconfig={{}},
@@ -149,7 +159,7 @@ exe = EXE(
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
-    entitlements_file='entitlements.plist',
+    entitlements_file=None,
 )
 
 coll = COLLECT(
