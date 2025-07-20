@@ -10,7 +10,7 @@ class AppConfig:
     
     # 应用信息
     APP_NAME = "现代录屏工具"
-    APP_VERSION = "1.0.0"
+    APP_VERSION = "1.1.0"
     APP_AUTHOR = "Your Company"
     
     # 默认设置

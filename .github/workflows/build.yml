@@ -46,27 +46,38 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
-        # Try CI requirements first
-        pip install -r requirements-ci.txt || echo "CI requirements failed"
-        # Ensure PyInstaller is available
-        pip install PyInstaller || echo "PyInstaller failed"
+        # Install CI requirements
+        pip install -r requirements-ci.txt
+        # Verify critical dependencies
+        python -c "import PyQt6; print('PyQt6 OK')"
+        python -c "import cv2; print('OpenCV OK')"
+        python -c "import numpy; print('NumPy OK')"
+        python -c "import PIL; print('Pillow OK')"
+        python -c "import mss; print('MSS OK')"
+        python -c "import psutil; print('PSUtil OK')"
+        python -c "import PyInstaller; print('PyInstaller OK')"
 
     - name: Create resources directory
       run: |
         mkdir -p resources
 
-    - name: Run tests (if test files exist)
-      run: |
-        if [ -f "test_installation.py" ]; then
-          python test_installation.py
-        fi
-      shell: bash
-      continue-on-error: true
+
 
     - name: Build executable
       run: |
         python scripts/ci_build.py
-      continue-on-error: true
+      env:
+        QT_QPA_PLATFORM: offscreen
+        DISPLAY: ":99"
+
+    - name: List build output
+      run: |
+        echo "Checking build output..."
+        ls -la dist/ || echo "No dist directory found"
+        if [ -d "dist" ]; then
+          find dist -type f -name "*" | head -20
+        fi
+      shell: bash
 
     - name: Upload Windows artifact
       if: runner.os == 'Windows' && hashFiles('dist/**/*') != ''
@@ -76,7 +87,7 @@ jobs:
         path: |
           dist/
           !dist/**/*.pyc
-      continue-on-error: true
+        retention-days: 30
 
     - name: Upload macOS artifact
       if: runner.os == 'macOS' && hashFiles('dist/**/*') != ''
@@ -86,7 +97,7 @@ jobs:
         path: |
           dist/
           !dist/**/*.pyc
-      continue-on-error: true
+        retention-days: 30
 
   release:
     needs: build

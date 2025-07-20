@@ -174,8 +174,8 @@ app = BUNDLE(
     info_plist={
         'CFBundleName': '现代录屏工具',
         'CFBundleDisplayName': '现代录屏工具',
-        'CFBundleVersion': '1.0.0',
-        'CFBundleShortVersionString': '1.0.0',
+        'CFBundleVersion': '1.1.0',
+        'CFBundleShortVersionString': '1.1.0',
         'NSHighResolutionCapable': True,
         'LSMinimumSystemVersion': '10.15.0',
     },
