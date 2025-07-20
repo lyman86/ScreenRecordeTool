@@ -97,27 +97,46 @@ Learn more: https://github.blog/changelog/2024-04-16-deprecation-notice-v3-of-th
 ## 🔄 Release创建问题修复
 
 ### 问题描述
-虽然GitHub Actions构建成功，但Release中没有生成对应的包文件。
+1. 虽然GitHub Actions构建成功，但Release中没有生成对应的包文件
+2. 通过标签触发时出现文件匹配错误: `Pattern 'ScreenRecorder-Windows.zip' does not match any files`
+3. GitHub release失败，状态码403权限错误
 
 ### 根本原因
 1. Release工作流只在推送标签时触发
-2. 构建产物下载路径可能不匹配
+2. 构建产物下载路径不匹配 - artifacts下载到了子目录
 3. 缺少调试信息来诊断问题
+4. GitHub Actions权限不足，缺少`contents: write`权限
 
 ### 修复措施
 
-#### 1. 改进构建工作流 (`build.yml`)
+#### 1. 修复权限问题
+- ✅ 添加`permissions: contents: write`到Release工作流
+- ✅ 添加`permissions: packages: write`用于包发布
+- ✅ 确保GITHUB_TOKEN有足够权限创建Release
+
+#### 2. 修复文件路径问题
+- ✅ 指定artifacts下载路径: `path: artifacts/`
+- ✅ 修复文件查找路径，支持多种目录结构
+- ✅ 添加详细的调试信息显示文件结构
+- ✅ 添加文件存在性检查
+
+#### 3. 改进构建工作流 (`build.yml`)
 - ✅ 添加调试信息显示下载的文件
 - ✅ 改进Release创建逻辑
 - ✅ 添加更详细的Release描述
 - ✅ 设置`fail_on_unmatched_files: false`避免文件不匹配错误
 
-#### 2. 新增手动Release工作流 (`manual-release.yml`)
+#### 4. 新增手动Release工作流 (`manual-release.yml`)
 - ✅ 支持手动触发Release创建
 - ✅ 可自定义版本号
 - ✅ 支持预发布选项
 - ✅ 自动创建Git标签
 - ✅ 完整的构建和发布流程
+
+#### 5. 新增测试Release工作流 (`test-release.yml`)
+- ✅ 用于测试Release创建流程
+- ✅ 创建测试文件验证权限和路径
+- ✅ 创建草稿Release避免污染正式版本
 
 ### 使用方法
 

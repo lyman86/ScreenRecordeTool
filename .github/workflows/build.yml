@@ -92,49 +92,80 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    
+    permissions:
+      contents: write
+      packages: write
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Download all artifacts
       uses: actions/download-artifact@v4
+      with:
+        path: artifacts/
 
     - name: List downloaded artifacts
       run: |
         echo "Listing all downloaded files:"
-        find . -type f -name "*" | head -20
+        find artifacts/ -type f -name "*" | head -20 || echo "No files found"
         echo "Listing directories:"
-        find . -type d -name "*" | head -10
+        find artifacts/ -type d -name "*" | head -10 || echo "No directories found"
+        echo "Artifact structure:"
+        ls -la artifacts/ || echo "Artifacts directory not found"
 
     - name: Create release archives
       run: |
         # 创建Windows发布包
-        if [ -d "ScreenRecorder-Windows-3.11" ]; then
+        if [ -d "artifacts/ScreenRecorder-Windows-3.11" ]; then
           echo "Found Windows build directory"
-          cd ScreenRecorder-Windows-3.11
-          zip -r ../ScreenRecorder-Windows.zip .
-          cd ..
+          cd artifacts/ScreenRecorder-Windows-3.11
+          zip -r ../../ScreenRecorder-Windows.zip .
+          cd ../..
+          echo "Created ScreenRecorder-Windows.zip"
+        elif [ -d "artifacts/ScreenRecorder-Windows" ]; then
+          echo "Found Windows build directory (alternative path)"
+          cd artifacts/ScreenRecorder-Windows
+          zip -r ../../ScreenRecorder-Windows.zip .
+          cd ../..
           echo "Created ScreenRecorder-Windows.zip"
         else
           echo "Windows build directory not found"
+          echo "Available directories:"
+          ls -la artifacts/ || echo "No artifacts directory"
         fi
 
         # 创建macOS发布包
-        if [ -d "ScreenRecorder-macOS-3.11" ]; then
+        if [ -d "artifacts/ScreenRecorder-macOS-3.11" ]; then
           echo "Found macOS build directory"
-          cd ScreenRecorder-macOS-3.11
-          tar -czf ../ScreenRecorder-macOS.tar.gz .
-          cd ..
+          cd artifacts/ScreenRecorder-macOS-3.11
+          tar -czf ../../ScreenRecorder-macOS.tar.gz .
+          cd ../..
+          echo "Created ScreenRecorder-macOS.tar.gz"
+        elif [ -d "artifacts/ScreenRecorder-macOS" ]; then
+          echo "Found macOS build directory (alternative path)"
+          cd artifacts/ScreenRecorder-macOS
+          tar -czf ../../ScreenRecorder-macOS.tar.gz .
+          cd ../..
           echo "Created ScreenRecorder-macOS.tar.gz"
         else
           echo "macOS build directory not found"
+          echo "Available directories:"
+          ls -la artifacts/ || echo "No artifacts directory"
         fi
 
         # 列出创建的文件
         echo "Created release files:"
         ls -la *.zip *.tar.gz 2>/dev/null || echo "No release files found"
         
+    - name: Check files before release
+      run: |
+        echo "Files in current directory:"
+        ls -la
+        echo "Checking for release files:"
+        [ -f "ScreenRecorder-Windows.zip" ] && echo "✅ Windows zip found" || echo "❌ Windows zip not found"
+        [ -f "ScreenRecorder-macOS.tar.gz" ] && echo "✅ macOS tar.gz found" || echo "❌ macOS tar.gz not found"
+
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
