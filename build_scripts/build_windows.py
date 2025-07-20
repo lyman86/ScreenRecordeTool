@@ -35,7 +35,7 @@ def create_spec_file(has_icon=False):
     # Determine icon path based on has_icon parameter
     icon_line = "icon='resources/icon.ico'," if has_icon else "icon=None,"
     
-    spec_content = f'''# -*- mode: python ; coding: utf-8 -*-
+    spec_content = f"""# -*- mode: python ; coding: utf-8 -*-
 
 block_cipher = None
 
@@ -96,7 +96,7 @@ exe = EXE(
     {icon_line}
     version='version_info.txt'
 )
-'''
+"""
     
     with open(SPEC_FILE, 'w', encoding='utf-8') as f:
         f.write(spec_content)
