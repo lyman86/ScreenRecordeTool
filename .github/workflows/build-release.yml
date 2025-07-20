@@ -55,7 +55,7 @@ jobs:
         echo "Windows executable built successfully"
     
     - name: Upload Windows artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: windows-build
         path: |
@@ -105,7 +105,7 @@ jobs:
         python build_scripts/build_macos.py
     
     - name: Upload macOS artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: macos-build
         path: |
@@ -131,13 +131,13 @@ jobs:
         fi
     
     - name: Download Windows artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: windows-build
         path: ./windows-build
     
     - name: Download macOS artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: macos-build
         path: ./macos-build
