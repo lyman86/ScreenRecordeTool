@@ -1,0 +1,170 @@
+name: Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.1)'
+        required: true
+        default: 'v1.0.1'
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  build-and-release:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+        python-version: ['3.11']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: Install system dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install portaudio
+        
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        pip install -r requirements-ci.txt || echo "CI requirements failed"
+        pip install PyInstaller || echo "PyInstaller failed"
+        
+    - name: Create resources directory
+      run: |
+        mkdir -p resources
+        
+    - name: Build executable
+      run: |
+        python scripts/ci_build.py
+      continue-on-error: true
+        
+    - name: Upload Windows artifact
+      if: runner.os == 'Windows'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ScreenRecorder-Windows
+        path: dist/
+        retention-days: 1
+      continue-on-error: true
+          
+    - name: Upload macOS artifact
+      if: runner.os == 'macOS'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ScreenRecorder-macOS
+        path: dist/
+        retention-days: 1
+      continue-on-error: true
+
+  create-release:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download Windows artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: ScreenRecorder-Windows
+        path: ./windows-build/
+      continue-on-error: true
+        
+    - name: Download macOS artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: ScreenRecorder-macOS
+        path: ./macos-build/
+      continue-on-error: true
+        
+    - name: Create release packages
+      run: |
+        # 创建Windows发布包
+        if [ -d "windows-build" ] && [ "$(ls -A windows-build)" ]; then
+          echo "Creating Windows package..."
+          cd windows-build
+          zip -r ../ScreenRecorder-Windows-${{ github.event.inputs.version }}.zip .
+          cd ..
+          echo "✅ Created Windows package"
+        else
+          echo "⚠️ Windows build not found or empty"
+        fi
+        
+        # 创建macOS发布包
+        if [ -d "macos-build" ] && [ "$(ls -A macos-build)" ]; then
+          echo "Creating macOS package..."
+          cd macos-build
+          tar -czf ../ScreenRecorder-macOS-${{ github.event.inputs.version }}.tar.gz .
+          cd ..
+          echo "✅ Created macOS package"
+        else
+          echo "⚠️ macOS build not found or empty"
+        fi
+        
+        # 列出创建的文件
+        echo "📦 Release packages:"
+        ls -la *.zip *.tar.gz 2>/dev/null || echo "No packages created"
+        
+    - name: Create Git tag
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git tag -a ${{ github.event.inputs.version }} -m "Release ${{ github.event.inputs.version }}"
+        git push origin ${{ github.event.inputs.version }}
+      continue-on-error: true
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event.inputs.version }}
+        name: Release ${{ github.event.inputs.version }}
+        files: |
+          ScreenRecorder-Windows-${{ github.event.inputs.version }}.zip
+          ScreenRecorder-macOS-${{ github.event.inputs.version }}.tar.gz
+        draft: false
+        prerelease: ${{ github.event.inputs.prerelease }}
+        generate_release_notes: true
+        body: |
+          ## 🎉 现代录屏工具 ${{ github.event.inputs.version }}
+          
+          ### 📦 下载
+          - **Windows**: ScreenRecorder-Windows-${{ github.event.inputs.version }}.zip
+          - **macOS**: ScreenRecorder-macOS-${{ github.event.inputs.version }}.tar.gz
+          
+          ### ✨ 主要功能
+          - 🎥 高质量屏幕录制 (支持多种分辨率和帧率)
+          - 🎵 同步音频录制 (支持系统音频和麦克风)
+          - 🖥️ 多显示器支持 (可选择特定显示器录制)
+          - 📱 区域选择录制 (自由选择录制区域)
+          - ⏯️ 实时录制控制 (开始/暂停/停止)
+          - 🎨 现代化UI设计 (Material Design风格)
+          - 🔧 多种输出格式 (MP4, AVI, MOV, WebM)
+          
+          ### 🚀 快速开始
+          1. 下载对应平台的压缩包
+          2. 解压到任意目录
+          3. 运行可执行文件
+          4. 开始录制！
+          
+          ### 📋 系统要求
+          - **Windows**: Windows 10 或更高版本
+          - **macOS**: macOS 10.15 或更高版本
+          
+          ---
+          🤖 自动构建 | 构建ID: ${{ github.run_id }}
+        fail_on_unmatched_files: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

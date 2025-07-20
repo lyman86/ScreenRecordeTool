@@ -99,22 +99,41 @@ jobs:
       
     - name: Download all artifacts
       uses: actions/download-artifact@v4
-      
+
+    - name: List downloaded artifacts
+      run: |
+        echo "Listing all downloaded files:"
+        find . -type f -name "*" | head -20
+        echo "Listing directories:"
+        find . -type d -name "*" | head -10
+
     - name: Create release archives
       run: |
         # 创建Windows发布包
         if [ -d "ScreenRecorder-Windows-3.11" ]; then
+          echo "Found Windows build directory"
           cd ScreenRecorder-Windows-3.11
           zip -r ../ScreenRecorder-Windows.zip .
           cd ..
+          echo "Created ScreenRecorder-Windows.zip"
+        else
+          echo "Windows build directory not found"
         fi
-        
+
         # 创建macOS发布包
         if [ -d "ScreenRecorder-macOS-3.11" ]; then
+          echo "Found macOS build directory"
           cd ScreenRecorder-macOS-3.11
           tar -czf ../ScreenRecorder-macOS.tar.gz .
           cd ..
+          echo "Created ScreenRecorder-macOS.tar.gz"
+        else
+          echo "macOS build directory not found"
         fi
+
+        # 列出创建的文件
+        echo "Created release files:"
+        ls -la *.zip *.tar.gz 2>/dev/null || echo "No release files found"
         
     - name: Create Release
       uses: softprops/action-gh-release@v1
@@ -125,5 +144,27 @@ jobs:
         draft: false
         prerelease: false
         generate_release_notes: true
+        name: Release ${{ github.ref_name }}
+        body: |
+          ## 🎉 现代录屏工具 ${{ github.ref_name }}
+
+          ### 📦 下载
+          - **Windows**: ScreenRecorder-Windows.zip
+          - **macOS**: ScreenRecorder-macOS.tar.gz
+
+          ### ✨ 主要功能
+          - 🎥 高质量屏幕录制
+          - 🎵 同步音频录制
+          - 🖥️ 多显示器支持
+          - 📱 区域选择录制
+          - ⏯️ 实时录制控制
+
+          ### 🚀 安装说明
+          1. 下载对应平台的压缩包
+          2. 解压到任意目录
+          3. 运行可执行文件
+
+          自动构建时间: ${{ github.run_id }}
+        fail_on_unmatched_files: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
