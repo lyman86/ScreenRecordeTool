@@ -68,24 +68,33 @@ jobs:
         python scripts/ci_build.py
       continue-on-error: true
 
+    - name: Check build output
+      run: |
+        echo "Checking build output..."
+        if [ -d "dist" ]; then
+          echo "✅ dist directory exists"
+          ls -la dist/
+          echo "Total files in dist: $(find dist -type f | wc -l)"
+        else
+          echo "❌ dist directory not found"
+        fi
+
     - name: Upload Windows artifact
-      if: runner.os == 'Windows' && hashFiles('dist/**/*') != ''
+      if: runner.os == 'Windows'
       uses: actions/upload-artifact@v4
       with:
         name: ScreenRecorder-Windows-${{ matrix.python-version }}
-        path: |
-          dist/
-          !dist/**/*.pyc
+        path: dist/
+        if-no-files-found: warn
       continue-on-error: true
 
     - name: Upload macOS artifact
-      if: runner.os == 'macOS' && hashFiles('dist/**/*') != ''
+      if: runner.os == 'macOS'
       uses: actions/upload-artifact@v4
       with:
         name: ScreenRecorder-macOS-${{ matrix.python-version }}
-        path: |
-          dist/
-          !dist/**/*.pyc
+        path: dist/
+        if-no-files-found: warn
       continue-on-error: true
 
   release:
@@ -104,6 +113,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         path: artifacts/
+        merge-multiple: true
 
     - name: List downloaded artifacts
       run: |
@@ -116,46 +126,54 @@ jobs:
 
     - name: Create release archives
       run: |
-        # 创建Windows发布包
-        if [ -d "artifacts/ScreenRecorder-Windows-3.11" ]; then
-          echo "Found Windows build directory"
-          cd artifacts/ScreenRecorder-Windows-3.11
-          zip -r ../../ScreenRecorder-Windows.zip .
-          cd ../..
-          echo "Created ScreenRecorder-Windows.zip"
-        elif [ -d "artifacts/ScreenRecorder-Windows" ]; then
-          echo "Found Windows build directory (alternative path)"
-          cd artifacts/ScreenRecorder-Windows
-          zip -r ../../ScreenRecorder-Windows.zip .
-          cd ../..
-          echo "Created ScreenRecorder-Windows.zip"
-        else
-          echo "Windows build directory not found"
-          echo "Available directories:"
-          ls -la artifacts/ || echo "No artifacts directory"
+        # 检查所有可能的Windows构建目录
+        WINDOWS_CREATED=false
+        for dir in "artifacts/ScreenRecorder-Windows-3.11" "artifacts/ScreenRecorder-Windows" "artifacts"/*Windows*; do
+          if [ -d "$dir" ] && [ "$(ls -A "$dir" 2>/dev/null)" ]; then
+            echo "Found Windows build directory: $dir"
+            cd "$dir"
+            zip -r "$(pwd | sed 's|.*/||')-Windows.zip" .
+            mv *.zip ../../ScreenRecorder-Windows.zip 2>/dev/null || cp *.zip ../../ScreenRecorder-Windows.zip 2>/dev/null || true
+            cd - > /dev/null
+            if [ -f "ScreenRecorder-Windows.zip" ]; then
+              echo "✅ Created ScreenRecorder-Windows.zip"
+              WINDOWS_CREATED=true
+              break
+            fi
+          fi
+        done
+
+        if [ "$WINDOWS_CREATED" = false ]; then
+          echo "❌ Windows build not found or empty"
+          echo "Available artifacts:"
+          find artifacts -name "*Windows*" -type d 2>/dev/null || echo "No Windows artifacts"
         fi
 
-        # 创建macOS发布包
-        if [ -d "artifacts/ScreenRecorder-macOS-3.11" ]; then
-          echo "Found macOS build directory"
-          cd artifacts/ScreenRecorder-macOS-3.11
-          tar -czf ../../ScreenRecorder-macOS.tar.gz .
-          cd ../..
-          echo "Created ScreenRecorder-macOS.tar.gz"
-        elif [ -d "artifacts/ScreenRecorder-macOS" ]; then
-          echo "Found macOS build directory (alternative path)"
-          cd artifacts/ScreenRecorder-macOS
-          tar -czf ../../ScreenRecorder-macOS.tar.gz .
-          cd ../..
-          echo "Created ScreenRecorder-macOS.tar.gz"
-        else
-          echo "macOS build directory not found"
-          echo "Available directories:"
-          ls -la artifacts/ || echo "No artifacts directory"
+        # 检查所有可能的macOS构建目录
+        MACOS_CREATED=false
+        for dir in "artifacts/ScreenRecorder-macOS-3.11" "artifacts/ScreenRecorder-macOS" "artifacts"/*macOS*; do
+          if [ -d "$dir" ] && [ "$(ls -A "$dir" 2>/dev/null)" ]; then
+            echo "Found macOS build directory: $dir"
+            cd "$dir"
+            tar -czf "$(pwd | sed 's|.*/||')-macOS.tar.gz" .
+            mv *.tar.gz ../../ScreenRecorder-macOS.tar.gz 2>/dev/null || cp *.tar.gz ../../ScreenRecorder-macOS.tar.gz 2>/dev/null || true
+            cd - > /dev/null
+            if [ -f "ScreenRecorder-macOS.tar.gz" ]; then
+              echo "✅ Created ScreenRecorder-macOS.tar.gz"
+              MACOS_CREATED=true
+              break
+            fi
+          fi
+        done
+
+        if [ "$MACOS_CREATED" = false ]; then
+          echo "❌ macOS build not found or empty"
+          echo "Available artifacts:"
+          find artifacts -name "*macOS*" -type d 2>/dev/null || echo "No macOS artifacts"
         fi
 
         # 列出创建的文件
-        echo "Created release files:"
+        echo "📦 Release files created:"
         ls -la *.zip *.tar.gz 2>/dev/null || echo "No release files found"
         
     - name: Check files before release
@@ -165,6 +183,27 @@ jobs:
         echo "Checking for release files:"
         [ -f "ScreenRecorder-Windows.zip" ] && echo "✅ Windows zip found" || echo "❌ Windows zip not found"
         [ -f "ScreenRecorder-macOS.tar.gz" ] && echo "✅ macOS tar.gz found" || echo "❌ macOS tar.gz not found"
+
+    - name: Prepare release files list
+      run: |
+        echo "Preparing release files list..."
+        RELEASE_FILES=""
+        if [ -f "ScreenRecorder-Windows.zip" ]; then
+          RELEASE_FILES="$RELEASE_FILES ScreenRecorder-Windows.zip"
+          echo "✅ Windows package will be included"
+        else
+          echo "⚠️ Windows package not available"
+        fi
+
+        if [ -f "ScreenRecorder-macOS.tar.gz" ]; then
+          RELEASE_FILES="$RELEASE_FILES ScreenRecorder-macOS.tar.gz"
+          echo "✅ macOS package will be included"
+        else
+          echo "⚠️ macOS package not available"
+        fi
+
+        echo "RELEASE_FILES=$RELEASE_FILES" >> $GITHUB_ENV
+        echo "Files to release: $RELEASE_FILES"
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
@@ -180,8 +219,8 @@ jobs:
           ## 🎉 现代录屏工具 ${{ github.ref_name }}
 
           ### 📦 下载
-          - **Windows**: ScreenRecorder-Windows.zip
-          - **macOS**: ScreenRecorder-macOS.tar.gz
+          ${{ hashFiles('ScreenRecorder-Windows.zip') != '' && '- **Windows**: ScreenRecorder-Windows.zip' || '- **Windows**: 构建失败，请从源码运行' }}
+          ${{ hashFiles('ScreenRecorder-macOS.tar.gz') != '' && '- **macOS**: ScreenRecorder-macOS.tar.gz' || '- **macOS**: 构建失败，请从源码运行' }}
 
           ### ✨ 主要功能
           - 🎥 高质量屏幕录制
@@ -191,11 +230,21 @@ jobs:
           - ⏯️ 实时录制控制
 
           ### 🚀 安装说明
+          #### 预编译版本
           1. 下载对应平台的压缩包
           2. 解压到任意目录
           3. 运行可执行文件
 
-          自动构建时间: ${{ github.run_id }}
+          #### 从源码运行
+          ```bash
+          git clone https://github.com/lyman86/ScreenRecordeTool.git
+          cd ScreenRecordeTool
+          pip install -r requirements.txt
+          python main.py
+          ```
+
+          ---
+          🤖 自动构建 | 构建ID: ${{ github.run_id }}
         fail_on_unmatched_files: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
