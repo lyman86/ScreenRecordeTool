@@ -244,7 +244,6 @@ def build_app():
         # Check application size
         if app_path.exists():
             try:
-                import os
                 total_size = 0
                 for dirpath, dirnames, filenames in os.walk(app_path):
                     for filename in filenames:
