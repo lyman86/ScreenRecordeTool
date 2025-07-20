@@ -29,11 +29,14 @@ def clean_build():
         SPEC_FILE.unlink()
         print(f"Deleted: {SPEC_FILE}")
 
-def create_spec_file():
+def create_spec_file(has_icon=False):
     """Create PyInstaller spec file"""
     print("Creating spec file...")
     
-    spec_content = '''# -*- mode: python ; coding: utf-8 -*-
+    # Determine icon configuration
+    icon_config = "icon='resources/icon.icns'," if has_icon else "# icon=None,  # No icon file available"
+    
+    spec_content = f"""# -*- mode: python ; coding: utf-8 -*-
 
 block_cipher = None
 
@@ -60,7 +63,7 @@ a = Analysis(
         'psutil'
     ],
     hookspath=[],
-    hooksconfig={},
+    hooksconfig={{}},
     runtime_hooks=[],
     excludes=[],
     win_no_prefer_redirects=False,
@@ -103,9 +106,9 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='ScreenRecorder.app',
-    icon='resources/icon.icns',
+    {icon_config}
     bundle_identifier='com.yourcompany.screenrecorder',
-    info_plist={
+    info_plist={{
         'CFBundleName': 'Modern Screen Recorder',
         'CFBundleDisplayName': 'Modern Screen Recorder',
         'CFBundleVersion': '1.0.0',
@@ -117,9 +120,9 @@ app = BUNDLE(
         'LSMinimumSystemVersion': '10.15.0',
         'NSRequiresAquaSystemAppearance': False,
         'NSSupportsAutomaticGraphicsSwitching': True,
-    },
+    }},
 )
-'''
+"""
     
     with open(SPEC_FILE, 'w', encoding='utf-8') as f:
         f.write(spec_content)
@@ -162,8 +165,19 @@ def create_icon():
         png_file = icon_dir / "icon.png"
         if png_file.exists():
             create_icns_from_png(png_file, icon_file)
-    else:
-        print(f"Found icon file: {icon_file}")
+            return icon_file.exists()  # Return True if ICNS was created successfully
+        return False
+    
+    # Check if the icon file is valid
+    try:
+        from PIL import Image
+        with Image.open(icon_file) as img:
+            print(f"Found valid icon file: {icon_file} ({img.format}, {img.size})")
+            return True
+    except Exception as e:
+        print(f"Warning: icon.icns file exists but is not a valid image: {e}")
+        print("The app will use the default PyInstaller icon")
+        return False
 
 def create_icns_from_png(png_file, icns_file):
     """Create ICNS file from PNG file"""
@@ -347,8 +361,8 @@ def main():
         
         # 3. Create necessary files
         create_entitlements()
-        create_icon()
-        create_spec_file()
+        has_icon = create_icon()
+        create_spec_file(has_icon)
         
         # 4. Build application
         app_path = build_app()

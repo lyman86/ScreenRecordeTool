@@ -159,9 +159,17 @@ def create_icon():
         print("Warning: icon.ico file not found, skipping icon setup")
         print("The executable will use the default PyInstaller icon")
         return False
-    else:
-        print(f"Found icon file: {icon_file}")
-        return True
+    
+    # Check if the icon file is valid
+    try:
+        from PIL import Image
+        with Image.open(icon_file) as img:
+            print(f"Found valid icon file: {icon_file} ({img.format}, {img.size})")
+            return True
+    except Exception as e:
+        print(f"Warning: icon.ico file exists but is not a valid image: {e}")
+        print("The executable will use the default PyInstaller icon")
+        return False
 
 def install_dependencies():
     """Install dependencies"""
