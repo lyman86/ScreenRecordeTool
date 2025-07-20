@@ -1,5 +1,5 @@
 """
-Windows打包脚本
+Windows packaging script
 """
 
 import os
@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-# 项目根目录
+# Project root directory
 PROJECT_ROOT = Path(__file__).parent.parent
 BUILD_DIR = PROJECT_ROOT / "build"
 DIST_DIR = PROJECT_ROOT / "dist"
@@ -153,10 +153,10 @@ def create_icon():
     
     icon_file = icon_dir / "icon.ico"
     if not icon_file.exists():
-        print("警告: 未找到icon.ico文件，将使用默认图标")
-        # 这里可以创建一个简单的默认图标或从网络下载
+        print("Warning: icon.ico file not found, using default icon")
+        # Here you can create a simple default icon or download from network
     else:
-        print(f"找到图标文件: {icon_file}")
+        print(f"Found icon file: {icon_file}")
 
 def install_dependencies():
     """Install dependencies"""

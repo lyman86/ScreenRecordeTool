@@ -182,7 +182,7 @@ def install_dependencies():
     print("Checking and installing dependencies...")
     
     try:
-        # 检查PyInstaller
+        # Check PyInstaller
         import PyInstaller
         print(f"PyInstaller version: {PyInstaller.__version__}")
     except ImportError:
@@ -376,7 +376,7 @@ def main():
             return 1
     
     except Exception as e:
-        print(f"构建过程中发生错误: {e}")
+        print(f"Error occurred during build: {e}")
         return 1
     
     return 0
