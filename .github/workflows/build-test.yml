@@ -53,8 +53,8 @@ jobs:
     
     - name: Create resources directory
       run: |
-        mkdir -p resources
-        echo "" > resources/icon.ico
+        if (!(Test-Path "resources")) { New-Item -ItemType Directory -Path "resources" }
+        New-Item -ItemType File -Path "resources/icon.ico" -Force
     
     - name: Test Python imports
       run: |

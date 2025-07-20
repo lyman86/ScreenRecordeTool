@@ -40,9 +40,9 @@ jobs:
     
     - name: Create resources directory
       run: |
-        mkdir -p resources
+        if (!(Test-Path "resources")) { New-Item -ItemType Directory -Path "resources" }
         # 创建一个简单的ICO文件占位符
-        echo "" > resources/icon.ico
+        New-Item -ItemType File -Path "resources/icon.ico" -Force
     
     - name: Build Windows executable
       run: |
